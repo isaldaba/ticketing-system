@@ -106,9 +106,19 @@ class AdminTicketController extends Controller
             'status' => 'in_progress',
             'admin_note' => $validated['admin_note'],
             'submitted_at' => null,
+            'staff_return_seen_at' => null,
         ]);
 
         return back()->with('success', 'Ticket returned to user.');
+    }
+
+    public function markReviewNotificationRead(Ticket $ticket): RedirectResponse
+    {
+        $ticket->update([
+            'admin_review_seen_at' => now(),
+        ]);
+
+        return redirect()->route('admin.tickets.index', ['status' => 'pending_review']);
     }
 
     private function serializeTicket(Ticket $ticket): array

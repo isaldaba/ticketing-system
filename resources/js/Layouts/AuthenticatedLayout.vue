@@ -9,6 +9,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
 const page = usePage();
+const notificationsOpen = ref(false);
 
 const dashboardHref = computed(() => {
     return page.props.auth.user.role === 'admin'
@@ -21,6 +22,8 @@ const dashboardActive = computed(() => {
         || route().current('admin.dashboard')
         || route().current('staff.dashboard');
 });
+
+const notifications = computed(() => page.props.notifications ?? { count: 0, items: [] });
 </script>
 
 <template>
@@ -66,6 +69,53 @@ const dashboardActive = computed(() => {
                         </div>
 
                         <div class="hidden sm:ms-6 sm:flex sm:items-center">
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    class="notification-button relative inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-700 transition hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                    @click="notificationsOpen = !notificationsOpen"
+                                >
+                                    <span class="sr-only">Notifications</span>
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                    </svg>
+                                    <span
+                                        v-if="notifications.count"
+                                        class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white ring-2 ring-white"
+                                    >
+                                        {{ notifications.count }}
+                                    </span>
+                                </button>
+
+                                <div
+                                    v-if="notificationsOpen"
+                                    class="absolute right-0 z-50 mt-3 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
+                                >
+                                    <div class="border-b border-gray-100 px-4 py-3">
+                                        <p class="text-sm font-semibold text-gray-900">Notifications</p>
+                                        <p class="mt-0.5 text-xs text-gray-500">{{ notifications.count }} active item{{ notifications.count === 1 ? '' : 's' }}</p>
+                                    </div>
+                                    <div v-if="notifications.items.length" class="max-h-80 overflow-y-auto">
+                                        <Link
+                                            v-for="item in notifications.items"
+                                            :key="item.id"
+                                            :href="item.href"
+                                            :method="item.method ?? 'get'"
+                                            as="button"
+                                            class="block w-full border-b border-gray-100 px-4 py-3 text-left transition hover:bg-indigo-50"
+                                            @click="notificationsOpen = false"
+                                        >
+                                            <p class="text-sm font-semibold text-gray-900">{{ item.title }}</p>
+                                            <p class="mt-1 text-sm text-gray-600">{{ item.message }}</p>
+                                            <p class="mt-1 text-xs font-medium text-gray-400">{{ item.time }}</p>
+                                        </Link>
+                                    </div>
+                                    <div v-else class="px-4 py-8 text-center text-sm text-gray-400">
+                                        No notifications.
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Settings Dropdown -->
                             <div class="relative ms-3">
                                 <Dropdown align="right" width="48">
@@ -201,6 +251,17 @@ const dashboardActive = computed(() => {
                         </div>
 
                         <div class="mt-3 space-y-1">
+                            <ResponsiveNavLink
+                                :href="$page.props.auth.user.role === 'admin' ? route('admin.tickets.index', { status: 'pending_review' }) : route('staff.dashboard')"
+                            >
+                                Notifications
+                                <span
+                                    v-if="notifications.count"
+                                    class="ms-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700"
+                                >
+                                    {{ notifications.count }}
+                                </span>
+                            </ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('profile.edit')">
                                 Profile
                             </ResponsiveNavLink>

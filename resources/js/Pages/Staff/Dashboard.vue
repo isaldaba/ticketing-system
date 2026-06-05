@@ -23,7 +23,12 @@ const props = defineProps({
 });
 
 const { auth } = usePage().props;
-const selectedTicket = ref(props.myTickets[0] ?? props.availableTickets[0] ?? null);
+const selectedTicket = ref(
+    props.myTickets.find((ticket) => ticket.status === 'in_progress')
+        ?? props.availableTickets[0]
+        ?? props.myTickets[0]
+        ?? null,
+);
 const showSubmitModal = ref(false);
 const claimForm = useForm({});
 const submitForm = useForm({
@@ -37,6 +42,10 @@ const statCards = computed(() => [
     { label: 'For Admin Review', value: props.stats.pendingReview, color: 'bg-indigo-500' },
     { label: 'Resolved', value: props.stats.resolved, color: 'bg-green-500' },
 ]);
+
+const inProgressTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'in_progress'));
+const pendingReviewTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'pending_review'));
+const resolvedTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'resolved'));
 
 const priorityClasses = {
     low: 'bg-slate-100 text-slate-700',
@@ -163,11 +172,11 @@ const submitTicket = () => {
 
                         <div class="panel-card animate-rise-delay-3 overflow-hidden rounded-xl">
                             <div class="border-b border-gray-200 px-6 py-4">
-                                <h3 class="font-semibold text-gray-900">My Tickets</h3>
+                                <h3 class="font-semibold text-gray-900">My In Progress</h3>
                             </div>
-                            <div v-if="myTickets.length" class="divide-y divide-gray-100">
+                            <div v-if="inProgressTickets.length" class="divide-y divide-gray-100">
                                 <button
-                                    v-for="ticket in myTickets"
+                                    v-for="ticket in inProgressTickets"
                                     :key="ticket.id"
                                     type="button"
                                     class="block w-full px-6 py-4 text-left transition hover:bg-gray-50"
@@ -189,7 +198,69 @@ const submitTicket = () => {
                                     </div>
                                 </button>
                             </div>
-                            <div v-else class="px-6 py-12 text-center text-sm text-gray-400">You have not picked a ticket yet.</div>
+                            <div v-else class="px-6 py-12 text-center text-sm text-gray-400">No tickets in progress.</div>
+                        </div>
+
+                        <div class="panel-card animate-rise-delay-3 overflow-hidden rounded-xl">
+                            <div class="border-b border-gray-200 px-6 py-4">
+                                <h3 class="font-semibold text-gray-900">For Admin Review</h3>
+                            </div>
+                            <div v-if="pendingReviewTickets.length" class="divide-y divide-gray-100">
+                                <button
+                                    v-for="ticket in pendingReviewTickets"
+                                    :key="ticket.id"
+                                    type="button"
+                                    class="block w-full px-6 py-4 text-left transition hover:bg-gray-50"
+                                    :class="{ 'bg-indigo-50': selectedTicket?.id === ticket.id }"
+                                    @click="selectedTicket = ticket"
+                                >
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
+                                            <p class="truncate font-semibold text-gray-900">{{ ticket.title }}</p>
+                                            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-gray-500">
+                                                <p v-if="ticket.due_date">Target finish: {{ ticket.due_date }}</p>
+                                                <p>In system: {{ ticket.created_at }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="priorityClasses[ticket.priority]">{{ ticket.priority }}</span>
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClasses[ticket.status]">{{ statusLabels[ticket.status] }}</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                            <div v-else class="px-6 py-12 text-center text-sm text-gray-400">No tickets waiting for admin review.</div>
+                        </div>
+
+                        <div class="panel-card animate-rise-delay-3 overflow-hidden rounded-xl">
+                            <div class="border-b border-gray-200 px-6 py-4">
+                                <h3 class="font-semibold text-gray-900">Resolved Tickets</h3>
+                            </div>
+                            <div v-if="resolvedTickets.length" class="divide-y divide-gray-100">
+                                <button
+                                    v-for="ticket in resolvedTickets"
+                                    :key="ticket.id"
+                                    type="button"
+                                    class="block w-full px-6 py-4 text-left transition hover:bg-gray-50"
+                                    :class="{ 'bg-indigo-50': selectedTicket?.id === ticket.id }"
+                                    @click="selectedTicket = ticket"
+                                >
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
+                                            <p class="truncate font-semibold text-gray-900">{{ ticket.title }}</p>
+                                            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-gray-500">
+                                                <p v-if="ticket.due_date">Target finish: {{ ticket.due_date }}</p>
+                                                <p>In system: {{ ticket.created_at }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="priorityClasses[ticket.priority]">{{ ticket.priority }}</span>
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClasses[ticket.status]">{{ statusLabels[ticket.status] }}</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                            <div v-else class="px-6 py-12 text-center text-sm text-gray-400">No resolved tickets yet.</div>
                         </div>
                     </div>
 

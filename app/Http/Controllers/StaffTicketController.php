@@ -74,9 +74,23 @@ class StaffTicketController extends Controller
             'user_remarks' => $validated['user_remarks'] ?? null,
             'status' => 'pending_review',
             'submitted_at' => now(),
+            'admin_review_seen_at' => null,
         ]);
 
         return back()->with('success', 'Ticket submitted for admin review.');
+    }
+
+    public function markReturnNotificationRead(Request $request, Ticket $ticket): RedirectResponse
+    {
+        if ($ticket->assigned_to !== $request->user()->id) {
+            abort(403);
+        }
+
+        $ticket->update([
+            'staff_return_seen_at' => now(),
+        ]);
+
+        return redirect()->route('staff.dashboard');
     }
 
     private function serializeTicket(Ticket $ticket): array

@@ -25,6 +25,8 @@ class Ticket extends Model
         'status',
         'submitted_at',
         'resolved_at',
+        'admin_review_seen_at',
+        'staff_return_seen_at',
     ];
 
     protected function casts(): array
@@ -33,6 +35,8 @@ class Ticket extends Model
             'due_date' => 'date',
             'submitted_at' => 'datetime',
             'resolved_at' => 'datetime',
+            'admin_review_seen_at' => 'datetime',
+            'staff_return_seen_at' => 'datetime',
         ];
     }
 
