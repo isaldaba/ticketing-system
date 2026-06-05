@@ -15,6 +15,7 @@ const props = defineProps({
         default: () => ({
             total: 0,
             open: 0,
+            pending: 0,
             pendingReview: 0,
             resolved: 0,
             highPriority: 0,
@@ -41,6 +42,7 @@ const form = useForm({
 const statCards = computed(() => [
     { label: 'Total Tickets', value: props.stats.total, color: 'bg-blue-500' },
     { label: 'Open Tickets', value: props.stats.open, color: 'bg-yellow-500' },
+    { label: 'Pending Tickets', value: props.stats.pending, color: 'bg-orange-500' },
     { label: 'For Review', value: props.stats.pendingReview, color: 'bg-indigo-500' },
     { label: 'Resolved Tickets', value: props.stats.resolved, color: 'bg-green-500' },
 ]);
@@ -53,6 +55,8 @@ const priorityClasses = {
 };
 
 const statusClasses = {
+    guest_review: 'bg-purple-100 text-purple-700',
+    guest_rejected: 'bg-red-100 text-red-700',
     open: 'bg-yellow-100 text-yellow-800',
     in_progress: 'bg-blue-100 text-blue-700',
     pending_review: 'bg-indigo-100 text-indigo-700',
@@ -60,6 +64,8 @@ const statusClasses = {
 };
 
 const statusLabels = {
+    guest_review: 'Guest review',
+    guest_rejected: 'Rejected',
     open: 'Open',
     in_progress: 'In progress',
     pending_review: 'For review',
@@ -113,7 +119,7 @@ const submitTicket = () => {
                     </div>
                 </div>
 
-                <div class="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
                     <div
                         v-for="stat in statCards"
                         :key="stat.label"

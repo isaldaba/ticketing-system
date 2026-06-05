@@ -21,7 +21,7 @@ return new class extends Migration
         });
 
         if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE tickets MODIFY status ENUM('open', 'in_progress', 'pending_review', 'resolved') NOT NULL DEFAULT 'open'");
+            DB::statement("ALTER TABLE tickets MODIFY status ENUM('guest_review', 'guest_rejected', 'open', 'in_progress', 'pending_review', 'resolved') NOT NULL DEFAULT 'open'");
         }
     }
 
@@ -31,7 +31,7 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE tickets MODIFY status ENUM('open', 'resolved') NOT NULL DEFAULT 'open'");
+            DB::statement("ALTER TABLE tickets MODIFY status ENUM('guest_review', 'guest_rejected', 'open', 'resolved') NOT NULL DEFAULT 'open'");
         }
 
         Schema::table('tickets', function (Blueprint $table) {

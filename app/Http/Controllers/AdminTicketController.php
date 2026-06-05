@@ -16,7 +16,7 @@ class AdminTicketController extends Controller
 
         $tickets = Ticket::query()
             ->with('assignee')
-            ->when(in_array($status, ['open', 'in_progress', 'pending_review', 'resolved'], true), fn ($query) => $query->where('status', $status))
+            ->when(in_array($status, ['guest_review', 'guest_rejected', 'open', 'in_progress', 'pending_review', 'resolved'], true), fn ($query) => $query->where('status', $status))
             ->orderByRaw("case priority when 'critical' then 1 when 'high' then 2 when 'medium' then 3 else 4 end")
             ->orderByRaw('due_date is null')
             ->orderBy('due_date')
@@ -31,6 +31,8 @@ class AdminTicketController extends Controller
             ],
             'counts' => [
                 'all' => Ticket::count(),
+                'guestReview' => Ticket::where('status', 'guest_review')->count(),
+                'guestRejected' => Ticket::where('status', 'guest_rejected')->count(),
                 'open' => Ticket::where('status', 'open')->count(),
                 'inProgress' => Ticket::where('status', 'in_progress')->count(),
                 'pendingReview' => Ticket::where('status', 'pending_review')->count(),
@@ -51,7 +53,8 @@ class AdminTicketController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'stats' => [
                 'total' => Ticket::count(),
-                'open' => Ticket::where('status', 'open')->count(),
+                'open' => Ticket::where('status', 'open')->whereNull('assigned_to')->count(),
+                'pending' => Ticket::where('status', 'in_progress')->count(),
                 'pendingReview' => Ticket::where('status', 'pending_review')->count(),
                 'resolved' => Ticket::where('status', 'resolved')->count(),
                 'highPriority' => Ticket::whereIn('priority', ['high', 'critical'])->count(),
@@ -92,6 +95,50 @@ class AdminTicketController extends Controller
         return back()->with('success', 'Ticket resolved.');
     }
 
+    public function publishGuestTicket(Request $request, Ticket $ticket): RedirectResponse
+    {
+        if ($ticket->status !== 'guest_review') {
+            return back()->with('error', 'Only guest requests can be added to the ticket list.');
+        }
+
+        $validated = $request->validate([
+            'priority' => ['required', 'in:low,medium,high,critical'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:today'],
+        ]);
+
+        $ticket->update([
+            'created_by' => $request->user()->id,
+            'requester_email' => $request->user()->email,
+            'priority' => $validated['priority'],
+            'due_date' => $validated['due_date'] ?? null,
+            'status' => 'open',
+            'admin_review_seen_at' => now(),
+        ]);
+
+        return back()->with('success', 'Guest request added to the ticket list.');
+    }
+
+    public function rejectGuestTicket(Request $request, Ticket $ticket): RedirectResponse
+    {
+        if ($ticket->status !== 'guest_review') {
+            return back()->with('error', 'Only guest requests can be rejected.');
+        }
+
+        $validated = $request->validate([
+            'admin_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $ticket->update([
+            'created_by' => $request->user()->id,
+            'requester_email' => $request->user()->email,
+            'status' => 'guest_rejected',
+            'admin_note' => $validated['admin_note'] ?? null,
+            'admin_review_seen_at' => now(),
+        ]);
+
+        return back()->with('success', 'Guest request rejected.');
+    }
+
     public function returnToUser(Request $request, Ticket $ticket): RedirectResponse
     {
         $validated = $request->validate([
@@ -118,7 +165,9 @@ class AdminTicketController extends Controller
             'admin_review_seen_at' => now(),
         ]);
 
-        return redirect()->route('admin.tickets.index', ['status' => 'pending_review']);
+        return redirect()->route('admin.tickets.index', [
+            'status' => $ticket->status === 'guest_review' ? 'guest_review' : 'pending_review',
+        ]);
     }
 
     private function serializeTicket(Ticket $ticket): array

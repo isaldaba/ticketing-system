@@ -4,7 +4,7 @@ import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -18,13 +18,23 @@ const props = defineProps({
     },
     counts: {
         type: Object,
-        default: () => ({ all: 0, open: 0, inProgress: 0, pendingReview: 0, resolved: 0 }),
+        default: () => ({ all: 0, guestReview: 0, guestRejected: 0, open: 0, inProgress: 0, pendingReview: 0, resolved: 0 }),
     },
 });
 
 const selectedTicket = ref(props.tickets[0] ?? null);
 const showReturnModal = ref(false);
 const showApproveModal = ref(false);
+const showPublishModal = ref(false);
+const showRejectGuestModal = ref(false);
+const { auth } = usePage().props;
+const publishForm = useForm({
+    priority: 'medium',
+    due_date: '',
+});
+const rejectGuestForm = useForm({
+    admin_note: '',
+});
 const approveForm = useForm({});
 const returnForm = useForm({
     admin_note: '',
@@ -38,6 +48,8 @@ const priorityClasses = {
 };
 
 const statusClasses = {
+    guest_review: 'bg-purple-100 text-purple-700',
+    guest_rejected: 'bg-red-100 text-red-700',
     open: 'bg-yellow-100 text-yellow-800',
     in_progress: 'bg-blue-100 text-blue-700',
     pending_review: 'bg-indigo-100 text-indigo-700',
@@ -45,6 +57,8 @@ const statusClasses = {
 };
 
 const filterTabs = computed(() => [
+    { label: 'Guest Review', value: 'guest_review', count: props.counts.guestReview },
+    { label: 'Rejected', value: 'guest_rejected', count: props.counts.guestRejected },
     { label: 'Open', value: 'open', count: props.counts.open },
     { label: 'In Progress', value: 'in_progress', count: props.counts.inProgress },
     { label: 'For Review', value: 'pending_review', count: props.counts.pendingReview },
@@ -53,11 +67,20 @@ const filterTabs = computed(() => [
 ]);
 
 const statusLabels = {
+    guest_review: 'Guest review',
+    guest_rejected: 'Rejected',
     open: 'Open',
     in_progress: 'In progress',
     pending_review: 'For review',
     resolved: 'Resolved',
 };
+
+const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
+];
 
 const changeFilter = (status) => {
     selectedTicket.value = null;
@@ -67,6 +90,63 @@ const changeFilter = (status) => {
         only: ['tickets', 'filters', 'counts'],
         onSuccess: (page) => {
             selectedTicket.value = page.props.tickets[0] ?? null;
+        },
+    });
+};
+
+const openPublishModal = () => {
+    if (!selectedTicket.value) {
+        return;
+    }
+
+    publishForm.priority = selectedTicket.value.priority ?? 'medium';
+    publishForm.due_date = '';
+    publishForm.clearErrors();
+    showPublishModal.value = true;
+};
+
+const closePublishModal = () => {
+    showPublishModal.value = false;
+    publishForm.reset();
+    publishForm.clearErrors();
+};
+
+const publishGuestTicket = () => {
+    if (!selectedTicket.value) {
+        return;
+    }
+
+    publishForm.patch(route('admin.tickets.publish', selectedTicket.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedTicket.value = null;
+            closePublishModal();
+        },
+    });
+};
+
+const openRejectGuestModal = () => {
+    rejectGuestForm.reset();
+    rejectGuestForm.clearErrors();
+    showRejectGuestModal.value = true;
+};
+
+const closeRejectGuestModal = () => {
+    showRejectGuestModal.value = false;
+    rejectGuestForm.reset();
+    rejectGuestForm.clearErrors();
+};
+
+const rejectGuestTicket = () => {
+    if (!selectedTicket.value) {
+        return;
+    }
+
+    rejectGuestForm.patch(route('admin.tickets.reject', selectedTicket.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedTicket.value = null;
+            closeRejectGuestModal();
         },
     });
 };
@@ -254,10 +334,33 @@ const returnTicket = () => {
                                 </p>
                             </div>
 
+                            <div v-if="selectedTicket.admin_note" class="mt-6">
+                                <p class="text-sm font-semibold text-gray-800">Admin Note</p>
+                                <p class="mt-2 whitespace-pre-line rounded-lg border border-red-100 bg-red-50 p-4 text-sm leading-6 text-gray-700">
+                                    {{ selectedTicket.admin_note }}
+                                </p>
+                            </div>
+
                             <div class="mt-6 flex justify-end gap-3">
                                 <SecondaryButton type="button" @click="selectedTicket = null">
                                     Clear
                                 </SecondaryButton>
+                                <button
+                                    v-if="selectedTicket.status === 'guest_review'"
+                                    type="button"
+                                    class="inline-flex items-center rounded-md border border-red-300 bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-red-700 shadow-sm transition hover:border-red-400 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                    @click="openRejectGuestModal"
+                                >
+                                    Reject Request
+                                </button>
+                                <PrimaryButton
+                                    v-if="selectedTicket.status === 'guest_review'"
+                                    :disabled="publishForm.processing"
+                                    :class="{ 'opacity-25': publishForm.processing }"
+                                    @click="openPublishModal"
+                                >
+                                    Add to Tickets
+                                </PrimaryButton>
                                 <button
                                     v-if="selectedTicket.status === 'pending_review'"
                                     type="button"
@@ -309,6 +412,105 @@ const returnTicket = () => {
                     <PrimaryButton :disabled="returnForm.processing" :class="{ 'opacity-25': returnForm.processing }">
                         Send Back
                     </PrimaryButton>
+                </div>
+            </form>
+        </Modal>
+
+        <Modal :show="showPublishModal" max-width="lg" @close="closePublishModal">
+            <form class="p-6" @submit.prevent="publishGuestTicket">
+                <h3 class="text-lg font-semibold text-gray-900">Add Guest Request to Tickets</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Set the working details before this becomes an open ticket for staff.
+                </p>
+
+                <div v-if="selectedTicket" class="mt-5 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+                    <p><span class="font-semibold text-gray-800">Ticket title:</span> {{ selectedTicket.title }}</p>
+                    <p><span class="font-semibold text-gray-800">Requester:</span> {{ selectedTicket.requester_name }}</p>
+                    <p><span class="font-semibold text-gray-800">Email:</span> {{ auth.user.email }}</p>
+                    <div>
+                        <p class="font-semibold text-gray-800">Concern</p>
+                        <p class="mt-1 whitespace-pre-line text-gray-600">{{ selectedTicket.concern }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div>
+                        <label for="publish-priority" class="mb-2 block text-sm font-medium text-gray-700">Priority</label>
+                        <select
+                            id="publish-priority"
+                            v-model="publishForm.priority"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                        >
+                            <option v-for="option in priorityOptions" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <InputError class="mt-2" :message="publishForm.errors.priority" />
+                    </div>
+
+                    <div>
+                        <label for="publish-due-date" class="mb-2 block text-sm font-medium text-gray-700">Target finish date</label>
+                        <input
+                            id="publish-due-date"
+                            v-model="publishForm.due_date"
+                            type="date"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                        <InputError class="mt-2" :message="publishForm.errors.due_date" />
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="closePublishModal">
+                        Cancel
+                    </SecondaryButton>
+                    <PrimaryButton :disabled="publishForm.processing" :class="{ 'opacity-25': publishForm.processing }">
+                        Add to Tickets
+                    </PrimaryButton>
+                </div>
+            </form>
+        </Modal>
+
+        <Modal :show="showRejectGuestModal" max-width="lg" @close="closeRejectGuestModal">
+            <form class="p-6" @submit.prevent="rejectGuestTicket">
+                <h3 class="text-lg font-semibold text-gray-900">Reject Guest Request</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Reject this request if it does not need to become a ticket. You can leave a short internal note.
+                </p>
+
+                <div v-if="selectedTicket" class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+                    <p><span class="font-semibold text-gray-800">Ticket title:</span> {{ selectedTicket.title }}</p>
+                    <p class="mt-2"><span class="font-semibold text-gray-800">Requester:</span> {{ selectedTicket.requester_name }}</p>
+                    <div class="mt-3">
+                        <p class="font-semibold text-gray-800">Concern</p>
+                        <p class="mt-1 whitespace-pre-line text-gray-600">{{ selectedTicket.concern }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <label for="reject-admin-note" class="mb-2 block text-sm font-medium text-gray-700">Admin note</label>
+                    <textarea
+                        id="reject-admin-note"
+                        v-model="rejectGuestForm.admin_note"
+                        class="block min-h-28 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        placeholder="Example: This is a duplicate request or does not require L1 support."
+                    ></textarea>
+                    <InputError class="mt-2" :message="rejectGuestForm.errors.admin_note" />
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="closeRejectGuestModal">
+                        Cancel
+                    </SecondaryButton>
+                    <button
+                        type="submit"
+                        class="inline-flex items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-red-700 focus:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:bg-red-800"
+                        :disabled="rejectGuestForm.processing"
+                        :class="{ 'opacity-25': rejectGuestForm.processing }"
+                    >
+                        Reject Request
+                    </button>
                 </div>
             </form>
         </Modal>

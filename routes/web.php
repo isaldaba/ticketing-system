@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminTicketController;
 use App\Http\Controllers\AdminStaffController;
+use App\Http\Controllers\GuestTicketController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffTicketController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,7 @@ Route::get('/', function () {
         'canRegister' => Route::has('register'),
     ]);
 });
+Route::post('/guest/tickets', [GuestTicketController::class, 'store'])->name('guest.tickets.store');
 
 Route::get('/dashboard', function () {
     return auth()->user()->role === 'admin'
@@ -25,6 +27,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/tickets', [AdminTicketController::class, 'index'])->name('admin.tickets.index');
     Route::get('/admin/staff', [AdminStaffController::class, 'index'])->name('admin.staff.index');
     Route::post('/admin/tickets', [AdminTicketController::class, 'store'])->name('admin.tickets.store');
+    Route::patch('/admin/tickets/{ticket}/publish', [AdminTicketController::class, 'publishGuestTicket'])->name('admin.tickets.publish');
+    Route::patch('/admin/tickets/{ticket}/reject', [AdminTicketController::class, 'rejectGuestTicket'])->name('admin.tickets.reject');
     Route::patch('/admin/tickets/{ticket}/approve', [AdminTicketController::class, 'approve'])->name('admin.tickets.approve');
     Route::patch('/admin/tickets/{ticket}/return', [AdminTicketController::class, 'returnToUser'])->name('admin.tickets.return');
     Route::post('/admin/tickets/{ticket}/notifications/review/read', [AdminTicketController::class, 'markReviewNotificationRead'])->name('admin.tickets.notifications.review.read');

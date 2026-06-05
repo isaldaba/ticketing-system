@@ -55,20 +55,22 @@ class HandleInertiaRequests extends Middleware
         if ($user->role === 'admin') {
             $tickets = Ticket::query()
                 ->with('assignee')
-                ->where('status', 'pending_review')
+                ->whereIn('status', ['guest_review', 'pending_review'])
                 ->whereNull('admin_review_seen_at')
-                ->latest('submitted_at')
+                ->latest('updated_at')
                 ->take(5)
                 ->get();
 
             return [
-                'count' => Ticket::where('status', 'pending_review')
+                'count' => Ticket::whereIn('status', ['guest_review', 'pending_review'])
                     ->whereNull('admin_review_seen_at')
                     ->count(),
                 'items' => $tickets->map(fn (Ticket $ticket): array => [
                     'id' => $ticket->id,
                     'title' => $ticket->title,
-                    'message' => ($ticket->assignee?->name ?? 'A staff member').' submitted a ticket for review.',
+                    'message' => $ticket->status === 'guest_review'
+                        ? $ticket->requester_name.' submitted a guest ticket request.'
+                        : ($ticket->assignee?->name ?? 'A staff member').' submitted a ticket for review.',
                     'time' => $ticket->submitted_at?->diffForHumans() ?? $ticket->updated_at?->diffForHumans(),
                     'href' => route('admin.tickets.notifications.review.read', $ticket),
                     'method' => 'post',

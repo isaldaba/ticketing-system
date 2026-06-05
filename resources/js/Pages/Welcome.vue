@@ -1,10 +1,52 @@
-﻿<script setup>
-import { Head, Link } from '@inertiajs/vue3';
+<script setup>
+import InputError from '@/Components/InputError.vue';
+import Modal from '@/Components/Modal.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 defineProps({
     canLogin: { type: Boolean },
     canRegister: { type: Boolean },
 });
+
+const showGuestTicketModal = ref(false);
+const showGuestTicketSuccessModal = ref(false);
+const guestTicketForm = useForm({
+    title: '',
+    requester_name: '',
+    priority: 'medium',
+    concern: '',
+});
+
+const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
+];
+
+const openGuestTicketModal = () => {
+    guestTicketForm.clearErrors();
+    showGuestTicketModal.value = true;
+};
+
+const closeGuestTicketModal = () => {
+    showGuestTicketModal.value = false;
+    guestTicketForm.reset();
+    guestTicketForm.clearErrors();
+};
+
+const submitGuestTicket = () => {
+    guestTicketForm.post(route('guest.tickets.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeGuestTicketModal();
+            showGuestTicketSuccessModal.value = true;
+        },
+    });
+};
 
 const features = [
     {
@@ -124,6 +166,13 @@ const staffPerms = [
                             A streamlined ticketing platform for your support team. Manage, assign, and resolve support requests with clarity  built for Admins and Staff.
                         </p>
                         <div class="mt-8 flex flex-wrap gap-4">
+                            <button
+                                type="button"
+                                class="rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-gray-800 hover:shadow-xl"
+                                @click="openGuestTicketModal"
+                            >
+                                Submit a Ticket
+                            </button>
                             <Link :href="route('register')" class="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition">
                                 Create an Account
                             </Link>
@@ -329,6 +378,13 @@ const staffPerms = [
                 <h2 class="text-4xl font-bold text-white">Ready to get started?</h2>
                 <p class="mt-4 text-indigo-200">Sign up now and start managing your support tickets today.</p>
                 <div class="mt-8 flex flex-wrap justify-center gap-4">
+                    <button
+                        type="button"
+                        class="rounded-lg bg-gray-900 px-8 py-3 text-sm font-semibold text-white shadow transition hover:-translate-y-0.5 hover:bg-gray-800 hover:shadow-lg"
+                        @click="openGuestTicketModal"
+                    >
+                        Submit Guest Ticket
+                    </button>
                     <Link :href="route('register')" class="rounded-lg bg-white px-8 py-3 text-sm font-semibold text-indigo-600 shadow hover:bg-indigo-50 transition">
                         Create Free Account
                     </Link>
@@ -351,6 +407,116 @@ const staffPerms = [
             </div>
             <p>&copy; 2026 HelpDesk Ticketing System. All rights reserved.</p>
         </footer>
+
+        <Modal :show="showGuestTicketModal" max-width="xl" @close="closeGuestTicketModal">
+            <form class="p-6" @submit.prevent="submitGuestTicket">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Submit Guest Ticket</h3>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Send your concern to admin first. They will review it before adding it to the ticket list.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                        @click="closeGuestTicketModal"
+                    >
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M10 8.586 15.657 2.93a1 1 0 1 1 1.414 1.414L11.414 10l5.657 5.657a1 1 0 0 1-1.414 1.414L10 11.414l-5.657 5.657a1 1 0 0 1-1.414-1.414L8.586 10 2.929 4.343A1 1 0 0 1 4.343 2.93L10 8.586Z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="mt-6 space-y-5">
+                    <div>
+                        <label for="guest-title" class="mb-2 block text-sm font-medium text-gray-700">Ticket title</label>
+                        <input
+                            id="guest-title"
+                            v-model="guestTicketForm.title"
+                            type="text"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                            placeholder="Example: Cannot access payroll account"
+                        >
+                        <InputError class="mt-2" :message="guestTicketForm.errors.title" />
+                    </div>
+
+                    <div>
+                        <label for="guest-name" class="mb-2 block text-sm font-medium text-gray-700">Full name</label>
+                        <input
+                            id="guest-name"
+                            v-model="guestTicketForm.requester_name"
+                            type="text"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                            placeholder="Your full name"
+                        >
+                        <InputError class="mt-2" :message="guestTicketForm.errors.requester_name" />
+                    </div>
+
+                    <div>
+                        <label for="guest-priority" class="mb-2 block text-sm font-medium text-gray-700">Priority</label>
+                        <select
+                            id="guest-priority"
+                            v-model="guestTicketForm.priority"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                        >
+                            <option v-for="option in priorityOptions" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <InputError class="mt-2" :message="guestTicketForm.errors.priority" />
+                    </div>
+
+                    <div>
+                        <label for="guest-concern" class="mb-2 block text-sm font-medium text-gray-700">Concern</label>
+                        <textarea
+                            id="guest-concern"
+                            v-model="guestTicketForm.concern"
+                            class="block min-h-36 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                            placeholder="State the issue, affected system, error messages, and anything already tried."
+                        ></textarea>
+                        <InputError class="mt-2" :message="guestTicketForm.errors.concern" />
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="closeGuestTicketModal">
+                        Cancel
+                    </SecondaryButton>
+                    <PrimaryButton :disabled="guestTicketForm.processing" :class="{ 'opacity-25': guestTicketForm.processing }">
+                        Send to Admin
+                    </PrimaryButton>
+                </div>
+            </form>
+        </Modal>
+
+        <Modal :show="showGuestTicketSuccessModal" max-width="md" @close="showGuestTicketSuccessModal = false">
+            <div class="p-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Ticket Request Submitted</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-500">
+                            Your concern has been sent to admin for review. If admin approves it, it will be added to the ticket list.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <PrimaryButton type="button" @click="showGuestTicketSuccessModal = false">
+                        Done
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
 
     </div>
 </template>
