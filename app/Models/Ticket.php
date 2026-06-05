@@ -18,6 +18,7 @@ class Ticket extends Model
         'requester_email',
         'concern',
         'resolution_note',
+        'resolution_image_path',
         'user_remarks',
         'admin_note',
         'priority',

@@ -30,10 +30,12 @@ const selectedTicket = ref(
         ?? null,
 );
 const showSubmitModal = ref(false);
+const imageViewerUrl = ref(null);
 const claimForm = useForm({});
 const submitForm = useForm({
     resolution_note: '',
     user_remarks: '',
+    resolution_image: null,
 });
 
 const statCards = computed(() => [
@@ -89,12 +91,21 @@ const closeSubmitModal = () => {
     submitForm.clearErrors();
 };
 
+const openImageViewer = (url) => {
+    imageViewerUrl.value = url;
+};
+
+const closeImageViewer = () => {
+    imageViewerUrl.value = null;
+};
+
 const submitTicket = () => {
     if (!selectedTicket.value) {
         return;
     }
 
-    submitForm.patch(route('staff.tickets.submit', selectedTicket.value.id), {
+    submitForm.post(route('staff.tickets.submit', selectedTicket.value.id), {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             selectedTicket.value = null;
@@ -297,6 +308,17 @@ const submitTicket = () => {
                                 <p class="mt-2 whitespace-pre-line rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-gray-700">{{ selectedTicket.resolution_note }}</p>
                             </div>
 
+                            <div v-if="selectedTicket.resolution_image_url" class="mt-6">
+                                <p class="text-sm font-semibold text-gray-800">Resolution Image</p>
+                                <button
+                                    type="button"
+                                    class="mt-2 block w-full overflow-hidden rounded-lg border border-gray-200 bg-white transition hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                    @click="openImageViewer(selectedTicket.resolution_image_url)"
+                                >
+                                    <img :src="selectedTicket.resolution_image_url" alt="Resolution documentation" class="max-h-80 w-full object-contain">
+                                </button>
+                            </div>
+
                             <div v-if="selectedTicket.user_remarks" class="mt-6">
                                 <p class="text-sm font-semibold text-gray-800">Your Remarks</p>
                                 <p class="mt-2 whitespace-pre-line rounded-lg border border-slate-200 bg-white p-4 text-sm leading-6 text-gray-700">{{ selectedTicket.user_remarks }}</p>
@@ -344,11 +366,47 @@ const submitTicket = () => {
                     <InputError class="mt-2" :message="submitForm.errors.user_remarks" />
                 </div>
 
+                <div class="mt-5">
+                    <p class="mb-2 text-sm font-semibold text-gray-800">Resolution Image</p>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
+                        @input="submitForm.resolution_image = $event.target.files[0] ?? null"
+                    >
+                    <p class="mt-2 text-xs text-gray-500">Optional. Upload a screenshot or photo for documentation.</p>
+                    <InputError class="mt-2" :message="submitForm.errors.resolution_image" />
+                </div>
+
                 <div class="mt-6 flex justify-end gap-3">
                     <SecondaryButton type="button" @click="closeSubmitModal">Cancel</SecondaryButton>
                     <PrimaryButton :disabled="submitForm.processing" :class="{ 'opacity-25': submitForm.processing }">Submit for Review</PrimaryButton>
                 </div>
             </form>
+        </Modal>
+
+        <Modal :show="Boolean(imageViewerUrl)" max-width="2xl" @close="closeImageViewer">
+            <div class="relative bg-slate-950/95 p-4 text-white">
+                <button
+                    type="button"
+                    class="absolute right-4 top-4 z-10 rounded-full bg-slate-900/80 p-2 text-white shadow-lg ring-1 ring-white/20 transition hover:bg-white hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-white"
+                    @click="closeImageViewer"
+                >
+                    <span class="sr-only">Close image preview</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 8.586 15.657 2.93a1 1 0 1 1 1.414 1.414L11.414 10l5.657 5.657a1 1 0 0 1-1.414 1.414L10 11.414l-5.657 5.657a1 1 0 0 1-1.414-1.414L8.586 10 2.929 4.343A1 1 0 0 1 4.343 2.93L10 8.586Z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <div class="flex min-h-[70vh] items-center justify-center rounded-xl bg-slate-900/80 p-4 shadow-2xl">
+                    <img
+                        v-if="imageViewerUrl"
+                        :src="imageViewerUrl"
+                        alt="Resolution documentation preview"
+                        class="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl"
+                    >
+                </div>
+                <p class="mt-3 text-center text-xs text-slate-300">Click outside, press Esc, or use the close button to exit.</p>
+            </div>
         </Modal>
     </AuthenticatedLayout>
 </template>

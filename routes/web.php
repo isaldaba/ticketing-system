@@ -37,7 +37,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
 Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
     Route::get('/staff/dashboard', [StaffTicketController::class, 'dashboard'])->name('staff.dashboard');
     Route::patch('/staff/tickets/{ticket}/claim', [StaffTicketController::class, 'claim'])->name('staff.tickets.claim');
-    Route::patch('/staff/tickets/{ticket}/submit', [StaffTicketController::class, 'submitForReview'])->name('staff.tickets.submit');
+    Route::match(['post', 'patch'], '/staff/tickets/{ticket}/submit', [StaffTicketController::class, 'submitForReview'])->name('staff.tickets.submit');
     Route::post('/staff/tickets/{ticket}/notifications/return/read', [StaffTicketController::class, 'markReturnNotificationRead'])->name('staff.tickets.notifications.return.read');
 });
 

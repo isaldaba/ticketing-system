@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -67,10 +68,22 @@ class StaffTicketController extends Controller
         $validated = $request->validate([
             'resolution_note' => ['required', 'string', 'max:3000'],
             'user_remarks' => ['nullable', 'string', 'max:3000'],
+            'resolution_image' => ['nullable', 'image', 'max:4096'],
         ]);
+
+        $resolutionImagePath = $ticket->resolution_image_path;
+
+        if ($request->hasFile('resolution_image')) {
+            if ($resolutionImagePath) {
+                Storage::disk('public')->delete($resolutionImagePath);
+            }
+
+            $resolutionImagePath = $request->file('resolution_image')->store('ticket-resolution-images', 'public');
+        }
 
         $ticket->update([
             'resolution_note' => $validated['resolution_note'],
+            'resolution_image_path' => $resolutionImagePath,
             'user_remarks' => $validated['user_remarks'] ?? null,
             'status' => 'pending_review',
             'submitted_at' => now(),
@@ -102,6 +115,7 @@ class StaffTicketController extends Controller
             'requester_email' => $ticket->requester_email,
             'concern' => $ticket->concern,
             'resolution_note' => $ticket->resolution_note,
+            'resolution_image_url' => $ticket->resolution_image_path ? Storage::url($ticket->resolution_image_path) : null,
             'user_remarks' => $ticket->user_remarks,
             'admin_note' => $ticket->admin_note,
             'priority' => $ticket->priority,

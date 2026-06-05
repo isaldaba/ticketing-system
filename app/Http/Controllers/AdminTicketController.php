@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -183,6 +184,7 @@ class AdminTicketController extends Controller
             'requester_email' => $ticket->requester_email,
             'concern' => $ticket->concern,
             'resolution_note' => $ticket->resolution_note,
+            'resolution_image_url' => $ticket->resolution_image_path ? Storage::url($ticket->resolution_image_path) : null,
             'user_remarks' => $ticket->user_remarks,
             'admin_note' => $ticket->admin_note,
             'priority' => $ticket->priority,
