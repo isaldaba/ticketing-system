@@ -1,31 +1,40 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
+const page = usePage();
+
+const dashboardHref = computed(() => {
+    return page.props.auth.user.role === 'admin'
+        ? route('admin.dashboard')
+        : route('staff.dashboard');
+});
+
+const dashboardActive = computed(() => {
+    return route().current('dashboard')
+        || route().current('admin.dashboard')
+        || route().current('staff.dashboard');
+});
 </script>
 
 <template>
     <div>
-        <div class="min-h-screen bg-gray-100">
-            <nav
-                class="border-b border-gray-100 bg-white"
-            >
+        <div class="app-shell min-h-screen">
+            <nav class="app-nav sticky top-0 z-40">
                 <!-- Primary Navigation Menu -->
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div class="flex h-16 justify-between">
                         <div class="flex">
                             <!-- Logo -->
                             <div class="flex shrink-0 items-center">
-                                <Link :href="route('dashboard')">
-                                    <ApplicationLogo
-                                        class="block h-9 w-auto fill-current text-gray-800"
-                                    />
+                                <Link :href="dashboardHref" class="logo-frame">
+                                    <ApplicationLogo class="block h-9 w-auto" />
                                 </Link>
                             </div>
 
@@ -34,10 +43,24 @@ const showingNavigationDropdown = ref(false);
                                 class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
                             >
                                 <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
+                                    :href="dashboardHref"
+                                    :active="dashboardActive"
                                 >
                                     Dashboard
+                                </NavLink>
+                                <NavLink
+                                    v-if="$page.props.auth.user.role === 'admin'"
+                                    :href="route('admin.tickets.index')"
+                                    :active="route().current('admin.tickets.index')"
+                                >
+                                    Tickets
+                                </NavLink>
+                                <NavLink
+                                    v-if="$page.props.auth.user.role === 'admin'"
+                                    :href="route('admin.staff.index')"
+                                    :active="route().current('admin.staff.index')"
+                                >
+                                    Staff
                                 </NavLink>
                             </div>
                         </div>
@@ -50,7 +73,7 @@ const showingNavigationDropdown = ref(false);
                                         <span class="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                class="user-menu-button inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-gray-700 transition duration-150 ease-in-out hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                             >
                                                 {{ $page.props.auth.user.name }}
 
@@ -141,10 +164,24 @@ const showingNavigationDropdown = ref(false);
                 >
                     <div class="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
+                            :href="dashboardHref"
+                            :active="dashboardActive"
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            v-if="$page.props.auth.user.role === 'admin'"
+                            :href="route('admin.tickets.index')"
+                            :active="route().current('admin.tickets.index')"
+                        >
+                            Tickets
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            v-if="$page.props.auth.user.role === 'admin'"
+                            :href="route('admin.staff.index')"
+                            :active="route().current('admin.staff.index')"
+                        >
+                            Staff
                         </ResponsiveNavLink>
                     </div>
 
@@ -181,7 +218,7 @@ const showingNavigationDropdown = ref(false);
 
             <!-- Page Heading -->
             <header
-                class="bg-white shadow"
+                class="app-header"
                 v-if="$slots.header"
             >
                 <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -190,7 +227,7 @@ const showingNavigationDropdown = ref(false);
             </header>
 
             <!-- Page Content -->
-            <main>
+            <main class="app-main">
                 <slot />
             </main>
         </div>

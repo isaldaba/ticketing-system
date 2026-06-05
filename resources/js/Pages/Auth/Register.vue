@@ -11,7 +11,6 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'staff',
 });
 
 const submit = () => {
@@ -55,22 +54,6 @@ const submit = () => {
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel for="role" value="Role" />
-
-                <select
-                    id="role"
-                    v-model="form.role"
-                    required
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                >
-                    <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
-                </select>
-
-                <InputError class="mt-2" :message="form.errors.role" />
             </div>
 
             <div class="mt-4">

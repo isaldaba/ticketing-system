@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdminTicketController;
+use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StaffTicketController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -12,22 +15,25 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard', [
-        'user' => auth()->user(),
-    ]);
+    return auth()->user()->role === 'admin'
+        ? redirect()->route('admin.dashboard')
+        : redirect()->route('staff.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/admin/dashboard', function () {
-    return Inertia::render('Admin/Dashboard', [
-        'user' => auth()->user(),
-    ]);
-})->middleware(['auth', 'verified', 'role:admin'])->name('admin.dashboard');
+Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
+    Route::get('/admin/dashboard', [AdminTicketController::class, 'dashboard'])->name('admin.dashboard');
+    Route::get('/admin/tickets', [AdminTicketController::class, 'index'])->name('admin.tickets.index');
+    Route::get('/admin/staff', [AdminStaffController::class, 'index'])->name('admin.staff.index');
+    Route::post('/admin/tickets', [AdminTicketController::class, 'store'])->name('admin.tickets.store');
+    Route::patch('/admin/tickets/{ticket}/approve', [AdminTicketController::class, 'approve'])->name('admin.tickets.approve');
+    Route::patch('/admin/tickets/{ticket}/return', [AdminTicketController::class, 'returnToUser'])->name('admin.tickets.return');
+});
 
-Route::get('/staff/dashboard', function () {
-    return Inertia::render('Staff/Dashboard', [
-        'user' => auth()->user(),
-    ]);
-})->middleware(['auth', 'verified', 'role:staff'])->name('staff.dashboard');
+Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
+    Route::get('/staff/dashboard', [StaffTicketController::class, 'dashboard'])->name('staff.dashboard');
+    Route::patch('/staff/tickets/{ticket}/claim', [StaffTicketController::class, 'claim'])->name('staff.tickets.claim');
+    Route::patch('/staff/tickets/{ticket}/submit', [StaffTicketController::class, 'submitForReview'])->name('staff.tickets.submit');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
