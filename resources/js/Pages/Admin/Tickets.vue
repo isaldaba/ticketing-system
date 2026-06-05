@@ -24,6 +24,7 @@ const props = defineProps({
 
 const selectedTicket = ref(props.tickets[0] ?? null);
 const showReturnModal = ref(false);
+const showApproveModal = ref(false);
 const approveForm = useForm({});
 const returnForm = useForm({
     admin_note: '',
@@ -79,8 +80,17 @@ const approveTicket = () => {
         preserveScroll: true,
         onSuccess: () => {
             selectedTicket.value = null;
+            closeApproveModal();
         },
     });
+};
+
+const openApproveModal = () => {
+    showApproveModal.value = true;
+};
+
+const closeApproveModal = () => {
+    showApproveModal.value = false;
 };
 
 const openReturnModal = () => {
@@ -260,7 +270,7 @@ const returnTicket = () => {
                                     v-if="selectedTicket.status === 'pending_review'"
                                     :disabled="approveForm.processing"
                                     :class="{ 'opacity-25': approveForm.processing }"
-                                    @click="approveTicket"
+                                    @click="openApproveModal"
                                 >
                                     Approve Resolved
                                 </PrimaryButton>
@@ -298,6 +308,39 @@ const returnTicket = () => {
                     </SecondaryButton>
                     <PrimaryButton :disabled="returnForm.processing" :class="{ 'opacity-25': returnForm.processing }">
                         Send Back
+                    </PrimaryButton>
+                </div>
+            </form>
+        </Modal>
+
+        <Modal :show="showApproveModal" max-width="md" @close="closeApproveModal">
+            <form class="p-6" @submit.prevent="approveTicket">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            Approve this ticket?
+                        </h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-500">
+                            Are you sure you want to approve this ticket as resolved? This will mark it complete for the assigned staff.
+                        </p>
+                        <p v-if="selectedTicket" class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800">
+                            {{ selectedTicket.title }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="closeApproveModal">
+                        Cancel
+                    </SecondaryButton>
+                    <PrimaryButton :disabled="approveForm.processing" :class="{ 'opacity-25': approveForm.processing }">
+                        Approve Ticket
                     </PrimaryButton>
                 </div>
             </form>
