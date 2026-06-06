@@ -275,11 +275,11 @@ const submitTicket = () => {
                         </div>
                     </div>
                     <div v-if="roadmapTickets.length" class="overflow-x-auto px-6 py-6">
-                        <div class="flex min-w-max items-stretch gap-5">
+                        <div class="grid min-w-max grid-flow-col auto-cols-[18rem] items-stretch gap-5">
                             <div
                                 v-for="(ticket, index) in roadmapTickets"
                                 :key="ticket.id"
-                                class="flex w-72 shrink-0 flex-col"
+                                class="flex min-h-[18rem] flex-col"
                             >
                                 <div class="mb-3 flex items-center gap-3 px-1">
                                     <span class="h-3 w-3 shrink-0 rounded-full" :class="ticket.roadmapDotClass"></span>
@@ -287,14 +287,14 @@ const submitTicket = () => {
                                 </div>
                                 <button
                                     type="button"
-                                    class="flex h-full flex-col rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                                    class="flex min-h-[16rem] flex-1 flex-col rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                                     :class="[ticket.roadmapCardClass, { 'ring-2 ring-indigo-400 ring-offset-2': selectedTicket?.id === ticket.id }]"
                                     @click="selectedTicket = ticket"
                                 >
                                     <div class="flex flex-wrap items-start justify-between gap-2">
                                         <div class="min-w-0">
-                                            <p class="truncate text-sm font-semibold text-gray-900">{{ ticket.title }}</p>
-                                            <p class="mt-1 text-xs font-medium text-gray-500">{{ ticket.requester_name }}</p>
+                                            <p class="h-10 overflow-hidden text-sm font-semibold leading-5 text-gray-900">{{ ticket.title }}</p>
+                                            <p class="mt-1 h-4 overflow-hidden text-xs font-medium text-gray-500">{{ ticket.requester_name }}</p>
                                         </div>
                                         <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="ticket.roadmapDeadlineClass">
                                             {{ ticket.roadmapDeadlineLabel }}
@@ -310,13 +310,13 @@ const submitTicket = () => {
                                         </span>
                                     </div>
 
-                                    <div class="mt-4 space-y-1 text-xs text-gray-600">
+                                    <div class="mt-4 min-h-[3.5rem] space-y-1 text-xs text-gray-600">
                                         <p v-if="ticket.due_date"><span class="font-semibold text-gray-800">Target finish:</span> {{ ticket.due_date }}</p>
                                         <p v-else><span class="font-semibold text-gray-800">Target finish:</span> Not set</p>
                                         <p><span class="font-semibold text-gray-800">Status:</span> {{ statusLabels[ticket.status] }}</p>
                                     </div>
 
-                                    <p class="mt-4 text-sm leading-6 text-gray-600">{{ ticket.roadmapDescription }}</p>
+                                    <p class="mt-4 min-h-[4.5rem] overflow-hidden text-sm leading-6 text-gray-600">{{ ticket.roadmapDescription }}</p>
                                 </button>
                             </div>
                         </div>
