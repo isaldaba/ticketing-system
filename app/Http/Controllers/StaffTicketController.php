@@ -120,10 +120,16 @@ class StaffTicketController extends Controller
             'admin_note' => $ticket->admin_note,
             'priority' => $ticket->priority,
             'due_date' => $ticket->due_date?->format('M j, Y'),
+            'due_date_iso' => $ticket->due_date?->copy()->endOfDay()->toIso8601String(),
             'status' => $ticket->status,
             'submitted_at' => $ticket->submitted_at?->diffForHumans(),
+            'submitted_at_label' => $ticket->submitted_at?->format('M j, Y g:i A'),
             'resolved_at' => $ticket->resolved_at?->diffForHumans(),
+            'resolved_at_label' => $ticket->resolved_at?->format('M j, Y g:i A'),
+            'resolved_at_iso' => $ticket->resolved_at?->toIso8601String(),
             'created_at' => $ticket->created_at?->diffForHumans(),
+            'created_at_label' => $ticket->created_at?->format('M j, Y g:i A'),
+            'created_at_iso' => $ticket->created_at?->toIso8601String(),
         ];
     }
 }

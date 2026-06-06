@@ -37,6 +37,7 @@ const submitForm = useForm({
     user_remarks: '',
     resolution_image: null,
 });
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const statCards = computed(() => [
     { label: 'Available Tickets', value: props.stats.available, color: 'bg-yellow-500' },
@@ -48,6 +49,147 @@ const statCards = computed(() => [
 const inProgressTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'in_progress'));
 const pendingReviewTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'pending_review'));
 const resolvedTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'resolved'));
+
+const parseDateValue = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const parsedDate = new Date(value);
+
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const countDays = (start, end) => {
+    if (!start || !end) {
+        return 0;
+    }
+
+    return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY));
+};
+
+const pluralizeDays = (value) => `${value} day${value === 1 ? '' : 's'}`;
+
+const selectedTicketDeadline = computed(() => {
+    const ticket = selectedTicket.value;
+
+    if (!ticket?.due_date_iso) {
+        return null;
+    }
+
+    const createdAt = parseDateValue(ticket.created_at_iso);
+    const dueAt = parseDateValue(ticket.due_date_iso);
+    const resolvedAt = parseDateValue(ticket.resolved_at_iso);
+    const referenceAt = resolvedAt ?? new Date();
+
+    if (!createdAt || !dueAt) {
+        return null;
+    }
+
+    const totalWindow = dueAt.getTime() - createdAt.getTime();
+    const elapsedWindow = referenceAt.getTime() - createdAt.getTime();
+    const progress = totalWindow > 0
+        ? clamp((elapsedWindow / totalWindow) * 100, 0, 100)
+        : 100;
+
+    if (resolvedAt) {
+        const onTime = resolvedAt.getTime() <= dueAt.getTime();
+
+        return {
+            progress,
+            badge: onTime ? 'Finished on time' : 'Finished late',
+            message: onTime
+                ? 'Resolution was completed before the target finish.'
+                : `Resolution landed ${pluralizeDays(countDays(dueAt, resolvedAt))} after the target finish.`,
+            barClass: onTime ? 'bg-emerald-500' : 'bg-amber-500',
+            badgeClass: onTime ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700',
+            textClass: onTime ? 'text-emerald-700' : 'text-amber-700',
+        };
+    }
+
+    if (referenceAt.getTime() > dueAt.getTime()) {
+        return {
+            progress,
+            badge: 'Overdue',
+            message: `${pluralizeDays(countDays(dueAt, referenceAt))} past the target finish.`,
+            barClass: 'bg-rose-500',
+            badgeClass: 'bg-rose-100 text-rose-700',
+            textClass: 'text-rose-700',
+        };
+    }
+
+    const daysLeft = countDays(referenceAt, dueAt);
+    const atRisk = progress >= 75;
+
+    return {
+        progress,
+        badge: atRisk ? 'Approaching deadline' : 'On track',
+        message: `${pluralizeDays(daysLeft)} left before the target finish.`,
+        barClass: atRisk ? 'bg-amber-500' : 'bg-sky-500',
+        badgeClass: atRisk ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700',
+        textClass: atRisk ? 'text-amber-700' : 'text-sky-700',
+    };
+});
+
+const selectedTicketTimeline = computed(() => {
+    const ticket = selectedTicket.value;
+
+    if (!ticket) {
+        return [];
+    }
+
+    const isOpen = ticket.status === 'open';
+    const isInProgress = ticket.status === 'in_progress';
+    const isPendingReview = ticket.status === 'pending_review';
+    const isResolved = ticket.status === 'resolved';
+
+    return [
+        {
+            key: 'logged',
+            title: 'Request logged',
+            description: 'The concern is in the system and ready for staff action.',
+            timestamp: ticket.created_at_label,
+            relative: ticket.created_at,
+            state: 'complete',
+        },
+        {
+            key: 'work',
+            title: isOpen ? 'Waiting for staff' : (isInProgress ? 'In progress' : 'Work completed'),
+            description: isOpen
+                ? 'No one has claimed this ticket yet.'
+                : (isInProgress
+                    ? 'This ticket is actively being worked on.'
+                    : 'The working phase finished and moved forward.'),
+            timestamp: isOpen ? 'Ready to claim' : (isInProgress ? 'Current stage' : (ticket.submitted_at_label ?? ticket.resolved_at_label ?? 'Completed')),
+            relative: isOpen ? (ticket.due_date ? `Target finish ${ticket.due_date}` : null) : (isInProgress ? (ticket.due_date ? `Target finish ${ticket.due_date}` : null) : (ticket.submitted_at ?? ticket.resolved_at)),
+            state: isOpen || isInProgress ? 'current' : 'complete',
+        },
+        {
+            key: 'review',
+            title: isResolved ? 'Admin review passed' : (isPendingReview ? 'Waiting for admin review' : 'Admin review'),
+            description: isResolved
+                ? 'Admin approved the submitted work.'
+                : (isPendingReview
+                    ? 'Admin can approve this ticket or return it with notes.'
+                    : 'This stage starts after you submit your resolution.'),
+            timestamp: ticket.submitted_at_label ?? (isPendingReview ? 'Submitted for review' : 'Not submitted yet'),
+            relative: ticket.submitted_at,
+            state: isResolved ? 'complete' : (isPendingReview ? 'current' : 'upcoming'),
+        },
+        {
+            key: 'resolved',
+            title: 'Resolved',
+            description: isResolved
+                ? 'The ticket is complete.'
+                : 'Final completion happens after admin approval.',
+            timestamp: ticket.resolved_at_label ?? 'Awaiting approval',
+            relative: ticket.resolved_at,
+            state: isResolved ? 'complete' : 'upcoming',
+        },
+    ];
+});
 
 const priorityClasses = {
     low: 'bg-slate-100 text-slate-700',
@@ -68,6 +210,30 @@ const statusLabels = {
     in_progress: 'In progress',
     pending_review: 'For review',
     resolved: 'Resolved',
+};
+
+const timelineCardClasses = {
+    complete: 'border-emerald-200 bg-emerald-50/80',
+    current: 'border-indigo-200 bg-indigo-50',
+    upcoming: 'border-slate-200 bg-white',
+};
+
+const timelineDotClasses = {
+    complete: 'bg-emerald-500 ring-4 ring-emerald-100',
+    current: 'bg-indigo-500 ring-4 ring-indigo-100',
+    upcoming: 'bg-slate-300 ring-4 ring-slate-100',
+};
+
+const timelineTitleClasses = {
+    complete: 'text-slate-900',
+    current: 'text-slate-900',
+    upcoming: 'text-slate-500',
+};
+
+const timelineConnectorClasses = {
+    complete: 'bg-emerald-200',
+    current: 'bg-slate-200',
+    upcoming: 'bg-slate-200',
 };
 
 const claimTicket = (ticket) => {
@@ -291,6 +457,70 @@ const submitTicket = () => {
                                 <p v-if="selectedTicket.requester_email"><span class="font-semibold text-gray-800">Email:</span> {{ selectedTicket.requester_email }}</p>
                                 <p v-if="selectedTicket.due_date"><span class="font-semibold text-gray-800">Target finish:</span> {{ selectedTicket.due_date }}</p>
                                 <p><span class="font-semibold text-gray-800">In system:</span> {{ selectedTicket.created_at }}</p>
+                            </div>
+
+                            <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-800">Ticket Timeline</p>
+                                        <p class="mt-1 text-sm text-gray-500">Visual progress from request date to target finish.</p>
+                                    </div>
+                                    <span
+                                        v-if="selectedTicketDeadline"
+                                        class="rounded-full px-3 py-1 text-xs font-semibold"
+                                        :class="selectedTicketDeadline.badgeClass"
+                                    >
+                                        {{ selectedTicketDeadline.badge }}
+                                    </span>
+                                </div>
+
+                                <div v-if="selectedTicketDeadline" class="mt-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-gray-500">
+                                        <span>{{ selectedTicket.created_at_label }}</span>
+                                        <span>{{ selectedTicket.due_date }}</span>
+                                    </div>
+                                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                                        <div
+                                            class="h-full rounded-full transition-all duration-300"
+                                            :class="selectedTicketDeadline.barClass"
+                                            :style="{ width: `${selectedTicketDeadline.progress}%` }"
+                                        ></div>
+                                    </div>
+                                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                        <span class="text-gray-500">Started {{ selectedTicket.created_at }}</span>
+                                        <span class="font-semibold" :class="selectedTicketDeadline.textClass">
+                                            {{ selectedTicketDeadline.message }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div v-else class="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-gray-500">
+                                    No target finish date is set for this ticket yet.
+                                </div>
+
+                                <ol class="mt-5 space-y-4">
+                                    <li
+                                        v-for="(step, index) in selectedTicketTimeline"
+                                        :key="step.key"
+                                        class="relative flex gap-4"
+                                    >
+                                        <div class="relative flex w-6 justify-center">
+                                            <span class="mt-1 h-3 w-3 rounded-full" :class="timelineDotClasses[step.state]"></span>
+                                            <span
+                                                v-if="index !== selectedTicketTimeline.length - 1"
+                                                class="absolute top-5 h-[calc(100%+0.5rem)] w-px"
+                                                :class="timelineConnectorClasses[step.state]"
+                                            ></span>
+                                        </div>
+                                        <div class="min-w-0 flex-1 rounded-xl border p-4" :class="timelineCardClasses[step.state]">
+                                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                                <p class="text-sm font-semibold" :class="timelineTitleClasses[step.state]">{{ step.title }}</p>
+                                                <p class="text-xs font-medium text-gray-500">{{ step.timestamp }}</p>
+                                            </div>
+                                            <p class="mt-1 text-sm leading-6 text-gray-600">{{ step.description }}</p>
+                                            <p v-if="step.relative" class="mt-2 text-xs font-medium text-gray-500">{{ step.relative }}</p>
+                                        </div>
+                                    </li>
+                                </ol>
                             </div>
 
                             <div class="mt-6">
