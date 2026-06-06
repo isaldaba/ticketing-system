@@ -29,6 +29,8 @@ class StaffTicketController extends Controller
             ->where('assigned_to', $user->id)
             ->whereIn('status', ['in_progress', 'pending_review', 'resolved'])
             ->orderByRaw("case status when 'in_progress' then 1 when 'pending_review' then 2 else 3 end")
+            ->orderByRaw('due_date is null')
+            ->orderBy('due_date')
             ->latest()
             ->get()
             ->map(fn (Ticket $ticket): array => $this->serializeTicket($ticket));
@@ -123,13 +125,8 @@ class StaffTicketController extends Controller
             'due_date_iso' => $ticket->due_date?->copy()->endOfDay()->toIso8601String(),
             'status' => $ticket->status,
             'submitted_at' => $ticket->submitted_at?->diffForHumans(),
-            'submitted_at_label' => $ticket->submitted_at?->format('M j, Y g:i A'),
             'resolved_at' => $ticket->resolved_at?->diffForHumans(),
-            'resolved_at_label' => $ticket->resolved_at?->format('M j, Y g:i A'),
-            'resolved_at_iso' => $ticket->resolved_at?->toIso8601String(),
             'created_at' => $ticket->created_at?->diffForHumans(),
-            'created_at_label' => $ticket->created_at?->format('M j, Y g:i A'),
-            'created_at_iso' => $ticket->created_at?->toIso8601String(),
         ];
     }
 }

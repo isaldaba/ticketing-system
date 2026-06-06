@@ -60,8 +60,6 @@ const parseDateValue = (value) => {
     return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
 const countDays = (start, end) => {
     if (!start || !end) {
         return 0;
@@ -72,123 +70,91 @@ const countDays = (start, end) => {
 
 const pluralizeDays = (value) => `${value} day${value === 1 ? '' : 's'}`;
 
-const selectedTicketDeadline = computed(() => {
-    const ticket = selectedTicket.value;
+const isSameCalendarDate = (firstDate, secondDate) => (
+    Boolean(firstDate && secondDate)
+    && firstDate.toDateString() === secondDate.toDateString()
+);
 
-    if (!ticket?.due_date_iso) {
-        return null;
+const compareTicketsByDueDate = (firstTicket, secondTicket) => {
+    const firstDueDate = parseDateValue(firstTicket.due_date_iso);
+    const secondDueDate = parseDateValue(secondTicket.due_date_iso);
+
+    if (firstDueDate && secondDueDate && firstDueDate.getTime() !== secondDueDate.getTime()) {
+        return firstDueDate.getTime() - secondDueDate.getTime();
     }
 
-    const createdAt = parseDateValue(ticket.created_at_iso);
-    const dueAt = parseDateValue(ticket.due_date_iso);
-    const resolvedAt = parseDateValue(ticket.resolved_at_iso);
-    const referenceAt = resolvedAt ?? new Date();
-
-    if (!createdAt || !dueAt) {
-        return null;
+    if (firstDueDate && !secondDueDate) {
+        return -1;
     }
 
-    const totalWindow = dueAt.getTime() - createdAt.getTime();
-    const elapsedWindow = referenceAt.getTime() - createdAt.getTime();
-    const progress = totalWindow > 0
-        ? clamp((elapsedWindow / totalWindow) * 100, 0, 100)
-        : 100;
-
-    if (resolvedAt) {
-        const onTime = resolvedAt.getTime() <= dueAt.getTime();
-
-        return {
-            progress,
-            badge: onTime ? 'Finished on time' : 'Finished late',
-            message: onTime
-                ? 'Resolution was completed before the target finish.'
-                : `Resolution landed ${pluralizeDays(countDays(dueAt, resolvedAt))} after the target finish.`,
-            barClass: onTime ? 'bg-emerald-500' : 'bg-amber-500',
-            badgeClass: onTime ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700',
-            textClass: onTime ? 'text-emerald-700' : 'text-amber-700',
-        };
+    if (!firstDueDate && secondDueDate) {
+        return 1;
     }
 
-    if (referenceAt.getTime() > dueAt.getTime()) {
-        return {
-            progress,
-            badge: 'Overdue',
-            message: `${pluralizeDays(countDays(dueAt, referenceAt))} past the target finish.`,
-            barClass: 'bg-rose-500',
-            badgeClass: 'bg-rose-100 text-rose-700',
-            textClass: 'text-rose-700',
-        };
-    }
+    return firstTicket.id - secondTicket.id;
+};
 
-    const daysLeft = countDays(referenceAt, dueAt);
-    const atRisk = progress >= 75;
+const roadmapStageMeta = {
+    open: {
+        label: 'Ready to start',
+        description: 'Available for staff pickup.',
+        cardClass: 'border-amber-200 bg-amber-50/70',
+        dotClass: 'bg-amber-500',
+    },
+    in_progress: {
+        label: 'Being implemented',
+        description: 'Currently under active work.',
+        cardClass: 'border-sky-200 bg-sky-50/80',
+        dotClass: 'bg-sky-500',
+    },
+    pending_review: {
+        label: 'Waiting for approval',
+        description: 'Submitted and waiting for admin review.',
+        cardClass: 'border-indigo-200 bg-indigo-50/80',
+        dotClass: 'bg-indigo-500',
+    },
+};
 
-    return {
-        progress,
-        badge: atRisk ? 'Approaching deadline' : 'On track',
-        message: `${pluralizeDays(daysLeft)} left before the target finish.`,
-        barClass: atRisk ? 'bg-amber-500' : 'bg-sky-500',
-        badgeClass: atRisk ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700',
-        textClass: atRisk ? 'text-amber-700' : 'text-sky-700',
-    };
-});
+const roadmapTickets = computed(() => {
+    const currentDate = new Date();
 
-const selectedTicketTimeline = computed(() => {
-    const ticket = selectedTicket.value;
+    return [...props.availableTickets, ...props.myTickets]
+        .filter((ticket) => ticket.status !== 'resolved')
+        .sort(compareTicketsByDueDate)
+        .map((ticket) => {
+            const dueDate = parseDateValue(ticket.due_date_iso);
+            const stage = roadmapStageMeta[ticket.status] ?? roadmapStageMeta.open;
 
-    if (!ticket) {
-        return [];
-    }
+            let deadlineLabel = 'No target finish';
+            let deadlineClass = 'bg-slate-100 text-slate-600';
 
-    const isOpen = ticket.status === 'open';
-    const isInProgress = ticket.status === 'in_progress';
-    const isPendingReview = ticket.status === 'pending_review';
-    const isResolved = ticket.status === 'resolved';
+            if (dueDate) {
+                if (currentDate.getTime() > dueDate.getTime()) {
+                    deadlineLabel = `${pluralizeDays(countDays(dueDate, currentDate))} overdue`;
+                    deadlineClass = 'bg-rose-100 text-rose-700';
+                } else if (isSameCalendarDate(currentDate, dueDate)) {
+                    deadlineLabel = 'Due today';
+                    deadlineClass = 'bg-amber-100 text-amber-700';
+                } else {
+                    const daysLeft = countDays(currentDate, dueDate);
 
-    return [
-        {
-            key: 'logged',
-            title: 'Request logged',
-            description: 'The concern is in the system and ready for staff action.',
-            timestamp: ticket.created_at_label,
-            relative: ticket.created_at,
-            state: 'complete',
-        },
-        {
-            key: 'work',
-            title: isOpen ? 'Waiting for staff' : (isInProgress ? 'In progress' : 'Work completed'),
-            description: isOpen
-                ? 'No one has claimed this ticket yet.'
-                : (isInProgress
-                    ? 'This ticket is actively being worked on.'
-                    : 'The working phase finished and moved forward.'),
-            timestamp: isOpen ? 'Ready to claim' : (isInProgress ? 'Current stage' : (ticket.submitted_at_label ?? ticket.resolved_at_label ?? 'Completed')),
-            relative: isOpen ? (ticket.due_date ? `Target finish ${ticket.due_date}` : null) : (isInProgress ? (ticket.due_date ? `Target finish ${ticket.due_date}` : null) : (ticket.submitted_at ?? ticket.resolved_at)),
-            state: isOpen || isInProgress ? 'current' : 'complete',
-        },
-        {
-            key: 'review',
-            title: isResolved ? 'Admin review passed' : (isPendingReview ? 'Waiting for admin review' : 'Admin review'),
-            description: isResolved
-                ? 'Admin approved the submitted work.'
-                : (isPendingReview
-                    ? 'Admin can approve this ticket or return it with notes.'
-                    : 'This stage starts after you submit your resolution.'),
-            timestamp: ticket.submitted_at_label ?? (isPendingReview ? 'Submitted for review' : 'Not submitted yet'),
-            relative: ticket.submitted_at,
-            state: isResolved ? 'complete' : (isPendingReview ? 'current' : 'upcoming'),
-        },
-        {
-            key: 'resolved',
-            title: 'Resolved',
-            description: isResolved
-                ? 'The ticket is complete.'
-                : 'Final completion happens after admin approval.',
-            timestamp: ticket.resolved_at_label ?? 'Awaiting approval',
-            relative: ticket.resolved_at,
-            state: isResolved ? 'complete' : 'upcoming',
-        },
-    ];
+                    deadlineLabel = `${pluralizeDays(daysLeft)} left`;
+                    deadlineClass = daysLeft <= 2
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700';
+                }
+            }
+
+            return {
+                ...ticket,
+                roadmapStage: stage.label,
+                roadmapDescription: stage.description,
+                roadmapCardClass: stage.cardClass,
+                roadmapDotClass: stage.dotClass,
+                roadmapDeadlineLabel: deadlineLabel,
+                roadmapDeadlineClass: deadlineClass,
+            };
+        });
 });
 
 const priorityClasses = {
@@ -210,30 +176,6 @@ const statusLabels = {
     in_progress: 'In progress',
     pending_review: 'For review',
     resolved: 'Resolved',
-};
-
-const timelineCardClasses = {
-    complete: 'border-emerald-200 bg-emerald-50/80',
-    current: 'border-indigo-200 bg-indigo-50',
-    upcoming: 'border-slate-200 bg-white',
-};
-
-const timelineDotClasses = {
-    complete: 'bg-emerald-500 ring-4 ring-emerald-100',
-    current: 'bg-indigo-500 ring-4 ring-indigo-100',
-    upcoming: 'bg-slate-300 ring-4 ring-slate-100',
-};
-
-const timelineTitleClasses = {
-    complete: 'text-slate-900',
-    current: 'text-slate-900',
-    upcoming: 'text-slate-500',
-};
-
-const timelineConnectorClasses = {
-    complete: 'bg-emerald-200',
-    current: 'bg-slate-200',
-    upcoming: 'bg-slate-200',
 };
 
 const claimTicket = (ticket) => {
@@ -317,6 +259,70 @@ const submitTicket = () => {
                             <p class="text-sm font-medium text-gray-500">{{ stat.label }}</p>
                             <p class="mt-2 text-3xl font-bold text-gray-900">{{ stat.value }}</p>
                         </div>
+                    </div>
+                </div>
+
+                <div class="panel-card animate-rise-delay-2 mb-8 overflow-hidden rounded-xl">
+                    <div class="border-b border-gray-200 px-6 py-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">Implementation Roadmap</h3>
+                                <p class="mt-1 text-sm text-gray-500">Visible tickets arranged by target finish so staff can see what needs attention next.</p>
+                            </div>
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                                {{ roadmapTickets.length }} active ticket{{ roadmapTickets.length === 1 ? '' : 's' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div v-if="roadmapTickets.length" class="overflow-x-auto px-6 py-6">
+                        <div class="flex min-w-max items-stretch gap-5">
+                            <div
+                                v-for="(ticket, index) in roadmapTickets"
+                                :key="ticket.id"
+                                class="flex w-72 shrink-0 flex-col"
+                            >
+                                <div class="mb-3 flex items-center gap-3 px-1">
+                                    <span class="h-3 w-3 shrink-0 rounded-full" :class="ticket.roadmapDotClass"></span>
+                                    <span v-if="index !== roadmapTickets.length - 1" class="h-px flex-1 bg-slate-200"></span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="flex h-full flex-col rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                                    :class="[ticket.roadmapCardClass, { 'ring-2 ring-indigo-400 ring-offset-2': selectedTicket?.id === ticket.id }]"
+                                    @click="selectedTicket = ticket"
+                                >
+                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-semibold text-gray-900">{{ ticket.title }}</p>
+                                            <p class="mt-1 text-xs font-medium text-gray-500">{{ ticket.requester_name }}</p>
+                                        </div>
+                                        <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="ticket.roadmapDeadlineClass">
+                                            {{ ticket.roadmapDeadlineLabel }}
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        <span class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="priorityClasses[ticket.priority]">
+                                            {{ ticket.priority }}
+                                        </span>
+                                        <span class="rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                            {{ ticket.roadmapStage }}
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-4 space-y-1 text-xs text-gray-600">
+                                        <p v-if="ticket.due_date"><span class="font-semibold text-gray-800">Target finish:</span> {{ ticket.due_date }}</p>
+                                        <p v-else><span class="font-semibold text-gray-800">Target finish:</span> Not set</p>
+                                        <p><span class="font-semibold text-gray-800">Status:</span> {{ statusLabels[ticket.status] }}</p>
+                                    </div>
+
+                                    <p class="mt-4 text-sm leading-6 text-gray-600">{{ ticket.roadmapDescription }}</p>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="px-6 py-12 text-center text-sm text-gray-400">
+                        No active tickets are available for the roadmap right now.
                     </div>
                 </div>
 
@@ -457,70 +463,6 @@ const submitTicket = () => {
                                 <p v-if="selectedTicket.requester_email"><span class="font-semibold text-gray-800">Email:</span> {{ selectedTicket.requester_email }}</p>
                                 <p v-if="selectedTicket.due_date"><span class="font-semibold text-gray-800">Target finish:</span> {{ selectedTicket.due_date }}</p>
                                 <p><span class="font-semibold text-gray-800">In system:</span> {{ selectedTicket.created_at }}</p>
-                            </div>
-
-                            <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-800">Ticket Timeline</p>
-                                        <p class="mt-1 text-sm text-gray-500">Visual progress from request date to target finish.</p>
-                                    </div>
-                                    <span
-                                        v-if="selectedTicketDeadline"
-                                        class="rounded-full px-3 py-1 text-xs font-semibold"
-                                        :class="selectedTicketDeadline.badgeClass"
-                                    >
-                                        {{ selectedTicketDeadline.badge }}
-                                    </span>
-                                </div>
-
-                                <div v-if="selectedTicketDeadline" class="mt-4">
-                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-gray-500">
-                                        <span>{{ selectedTicket.created_at_label }}</span>
-                                        <span>{{ selectedTicket.due_date }}</span>
-                                    </div>
-                                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                                        <div
-                                            class="h-full rounded-full transition-all duration-300"
-                                            :class="selectedTicketDeadline.barClass"
-                                            :style="{ width: `${selectedTicketDeadline.progress}%` }"
-                                        ></div>
-                                    </div>
-                                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-                                        <span class="text-gray-500">Started {{ selectedTicket.created_at }}</span>
-                                        <span class="font-semibold" :class="selectedTicketDeadline.textClass">
-                                            {{ selectedTicketDeadline.message }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div v-else class="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-gray-500">
-                                    No target finish date is set for this ticket yet.
-                                </div>
-
-                                <ol class="mt-5 space-y-4">
-                                    <li
-                                        v-for="(step, index) in selectedTicketTimeline"
-                                        :key="step.key"
-                                        class="relative flex gap-4"
-                                    >
-                                        <div class="relative flex w-6 justify-center">
-                                            <span class="mt-1 h-3 w-3 rounded-full" :class="timelineDotClasses[step.state]"></span>
-                                            <span
-                                                v-if="index !== selectedTicketTimeline.length - 1"
-                                                class="absolute top-5 h-[calc(100%+0.5rem)] w-px"
-                                                :class="timelineConnectorClasses[step.state]"
-                                            ></span>
-                                        </div>
-                                        <div class="min-w-0 flex-1 rounded-xl border p-4" :class="timelineCardClasses[step.state]">
-                                            <div class="flex flex-wrap items-start justify-between gap-2">
-                                                <p class="text-sm font-semibold" :class="timelineTitleClasses[step.state]">{{ step.title }}</p>
-                                                <p class="text-xs font-medium text-gray-500">{{ step.timestamp }}</p>
-                                            </div>
-                                            <p class="mt-1 text-sm leading-6 text-gray-600">{{ step.description }}</p>
-                                            <p v-if="step.relative" class="mt-2 text-xs font-medium text-gray-500">{{ step.relative }}</p>
-                                        </div>
-                                    </li>
-                                </ol>
                             </div>
 
                             <div class="mt-6">
