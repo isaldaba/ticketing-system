@@ -274,12 +274,12 @@ const submitTicket = () => {
                             </span>
                         </div>
                     </div>
-                    <div v-if="roadmapTickets.length" class="overflow-x-auto px-6 py-6">
-                        <div class="grid min-w-max grid-flow-col auto-cols-[18rem] items-stretch gap-5">
+                    <div v-if="roadmapTickets.length" class="overflow-x-auto overscroll-x-contain px-6 py-6 pb-3">
+                        <div class="flex min-w-max items-stretch gap-5 pr-2">
                             <div
                                 v-for="(ticket, index) in roadmapTickets"
                                 :key="ticket.id"
-                                class="flex min-h-[18rem] flex-col"
+                                class="flex min-h-[18rem] w-72 shrink-0 flex-col"
                             >
                                 <div class="mb-3 flex items-center gap-3 px-1">
                                     <span class="h-3 w-3 shrink-0 rounded-full" :class="ticket.roadmapDotClass"></span>
@@ -287,7 +287,7 @@ const submitTicket = () => {
                                 </div>
                                 <button
                                     type="button"
-                                    class="flex min-h-[16rem] flex-1 flex-col rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                                    class="flex min-h-[16rem] flex-1 flex-col rounded-2xl border p-4 text-left shadow-sm transition-colors duration-150 hover:border-indigo-200"
                                     :class="[ticket.roadmapCardClass, { 'ring-2 ring-indigo-400 ring-offset-2': selectedTicket?.id === ticket.id }]"
                                     @click="selectedTicket = ticket"
                                 >
