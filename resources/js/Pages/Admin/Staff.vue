@@ -1,5 +1,8 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Modal from '@/Components/Modal.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
@@ -41,6 +44,8 @@ const showStatistics = ref(false);
 const selectedStaffId = ref(null);
 const showStaffDropdown = ref(false);
 const staffSearch = ref('');
+const showAccomplishmentModal = ref(false);
+const accomplishmentPeriod = ref('week');
 
 const periodTabs = computed(() => [
     { label: 'Today', value: 'day' },
@@ -85,6 +90,55 @@ const statisticsTitle = computed(() => {
     return selectedStaff.value ? selectedStaff.value.name : 'All Staff';
 });
 
+const startOfDay = (date) => {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+
+    return result;
+};
+
+const endOfDay = (date) => {
+    const result = new Date(date);
+    result.setHours(23, 59, 59, 999);
+
+    return result;
+};
+
+const accomplishmentRange = computed(() => {
+    const now = new Date();
+    const start = startOfDay(now);
+
+    if (accomplishmentPeriod.value === 'week') {
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    } else {
+        start.setDate(1);
+    }
+
+    return { start, end: endOfDay(now) };
+});
+
+const accomplishmentTickets = computed(() => (selectedStaff.value?.accomplishments ?? []).filter((ticket) => {
+    const resolvedDate = new Date(ticket.resolved_at_iso);
+
+    return !Number.isNaN(resolvedDate.getTime())
+        && resolvedDate >= accomplishmentRange.value.start
+        && resolvedDate <= accomplishmentRange.value.end;
+}));
+
+const accomplishmentPeriodLabel = computed(() => (
+    accomplishmentPeriod.value === 'week' ? 'This Week' : 'This Month'
+));
+
+const formatReportDate = (date) => new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+}).format(date);
+
+const accomplishmentDateRange = computed(() => (
+    `${formatReportDate(accomplishmentRange.value.start)} - ${formatReportDate(accomplishmentRange.value.end)}`
+));
+
 watch(
     () => props.staff,
     () => {
@@ -113,6 +167,29 @@ const selectAllStaff = () => {
     selectedStaffId.value = null;
     showStaffDropdown.value = false;
     staffSearch.value = '';
+};
+
+const openAccomplishmentModal = () => {
+    if (!selectedStaff.value) {
+        return;
+    }
+
+    showAccomplishmentModal.value = true;
+};
+
+const closeAccomplishmentModal = () => {
+    showAccomplishmentModal.value = false;
+};
+
+const downloadAccomplishment = () => {
+    if (!selectedStaff.value) {
+        return;
+    }
+
+    window.location.href = route('admin.staff.accomplishment-report', {
+        user: selectedStaff.value.id,
+        period: accomplishmentPeriod.value,
+    });
 };
 
 const chartTotal = (items) => items.reduce((total, item) => total + item.value, 0);
@@ -341,55 +418,57 @@ const heatmapTitle = (day) => {
                                     {{ activeHeatmap.total }} resolved ticket{{ activeHeatmap.total === 1 ? '' : 's' }} in the last year for {{ statisticsTitle }}.
                                 </p>
                             </div>
-                            <div class="relative w-full sm:w-72">
-                                <button
-                                    type="button"
-                                    class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
-                                    @click="showStaffDropdown = !showStaffDropdown"
-                                >
-                                    <span class="truncate">{{ selectedStaff?.name ?? 'All Staff' }}</span>
-                                    <svg class="ms-2 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                    </svg>
-                                </button>
+                            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                                <div class="relative w-full sm:w-72">
+                                    <button
+                                        type="button"
+                                        class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                                        @click="showStaffDropdown = !showStaffDropdown"
+                                    >
+                                        <span class="truncate">{{ selectedStaff?.name ?? 'Select a staff member' }}</span>
+                                        <svg class="ms-2 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
 
-                                <div
-                                    v-if="showStaffDropdown"
-                                    class="absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg"
-                                >
-                                    <div class="border-b border-gray-100 p-2">
-                                        <input
-                                            v-model="staffSearch"
-                                            type="text"
-                                            class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                            placeholder="Search staff name"
-                                        />
-                                    </div>
-                                    <div class="max-h-64 overflow-y-auto py-1">
-                                        <button
-                                            type="button"
-                                            class="block w-full px-3 py-2 text-left text-sm font-semibold transition hover:bg-indigo-50"
-                                            :class="!selectedStaff ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'"
-                                            @click="selectAllStaff"
-                                        >
-                                            All Staff
-                                        </button>
-                                        <button
-                                            v-for="member in filteredStaff"
-                                            :key="member.id"
-                                            type="button"
-                                            class="block w-full px-3 py-2 text-left transition hover:bg-indigo-50"
-                                            :class="selectedStaffId === member.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'"
-                                            @click="selectStaff(member)"
-                                        >
-                                            <span class="block text-sm font-semibold">{{ member.name }}</span>
-                                            <span class="mt-0.5 block truncate text-xs text-gray-500">{{ member.email }}</span>
-                                        </button>
-                                        <p v-if="!filteredStaff.length" class="px-3 py-4 text-center text-sm text-gray-400">
-                                            No staff found.
-                                        </p>
+                                    <div
+                                        v-if="showStaffDropdown"
+                                        class="absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg"
+                                    >
+                                        <div class="border-b border-gray-100 p-2">
+                                            <input
+                                                v-model="staffSearch"
+                                                type="text"
+                                                class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                placeholder="Search staff name"
+                                            />
+                                        </div>
+                                        <div class="max-h-64 overflow-y-auto py-1">
+                                            <button
+                                                v-for="member in filteredStaff"
+                                                :key="member.id"
+                                                type="button"
+                                                class="block w-full px-3 py-2 text-left transition hover:bg-indigo-50"
+                                                :class="selectedStaffId === member.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'"
+                                                @click="selectStaff(member)"
+                                            >
+                                                <span class="block text-sm font-semibold">{{ member.name }}</span>
+                                                <span class="mt-0.5 block truncate text-xs text-gray-500">{{ member.email }}</span>
+                                            </button>
+                                            <p v-if="!filteredStaff.length" class="px-3 py-4 text-center text-sm text-gray-400">
+                                                No staff found.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
+                                <button
+                                    type="button"
+                                    class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                    :disabled="!selectedStaff"
+                                    @click="openAccomplishmentModal"
+                                >
+                                    Generate Accomplishment Report
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -449,5 +528,61 @@ const heatmapTitle = (day) => {
                 </div>
             </div>
         </div>
+
+        <Modal :show="showAccomplishmentModal" max-width="2xl" @close="closeAccomplishmentModal">
+            <div class="p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Staff Accomplishment Report</h3>
+                        <p class="mt-1 text-sm text-gray-500">{{ selectedStaff?.name }}</p>
+                    </div>
+                    <div class="inline-flex self-start rounded-lg bg-gray-100 p-1">
+                        <button
+                            v-for="period in [{ value: 'week', label: 'This Week' }, { value: 'month', label: 'This Month' }]"
+                            :key="period.value"
+                            type="button"
+                            class="rounded-md px-3 py-2 text-xs font-semibold transition"
+                            :class="accomplishmentPeriod === period.value ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+                            @click="accomplishmentPeriod = period.value"
+                        >
+                            {{ period.label }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">{{ accomplishmentPeriodLabel }}</p>
+                            <p class="mt-1 text-sm text-gray-600">{{ accomplishmentDateRange }}</p>
+                        </div>
+                        <span class="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                            {{ accomplishmentTickets.length }} resolved
+                        </span>
+                    </div>
+
+                    <div v-if="accomplishmentTickets.length" class="mt-5 space-y-3">
+                        <div v-for="ticket in accomplishmentTickets" :key="ticket.id" class="rounded-lg border border-white bg-white p-4 shadow-sm">
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <p class="font-semibold text-gray-900">{{ ticket.title }}</p>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{{ ticket.priority }}</span>
+                            </div>
+                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{{ ticket.resolution_note || 'Ticket resolved and approved by admin.' }}</p>
+                            <p class="mt-2 text-xs font-medium text-gray-400">Resolved {{ ticket.resolved_at }}</p>
+                        </div>
+                    </div>
+                    <p v-else class="mt-5 rounded-lg bg-white px-4 py-8 text-center text-sm text-gray-400">
+                        No tickets were resolved during this period.
+                    </p>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="closeAccomplishmentModal">Close</SecondaryButton>
+                    <PrimaryButton type="button" @click="downloadAccomplishment">
+                        Download PDF
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
     </AuthenticatedLayout>
 </template>

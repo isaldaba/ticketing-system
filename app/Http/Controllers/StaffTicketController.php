@@ -126,6 +126,7 @@ class StaffTicketController extends Controller
             'status' => $ticket->status,
             'submitted_at' => $ticket->submitted_at?->diffForHumans(),
             'resolved_at' => $ticket->resolved_at?->diffForHumans(),
+            'resolved_at_iso' => $ticket->resolved_at?->toIso8601String(),
             'created_at' => $ticket->created_at?->diffForHumans(),
         ];
     }

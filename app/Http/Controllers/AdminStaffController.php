@@ -19,6 +19,8 @@ class AdminStaffController extends Controller
         $period = in_array($period, ['day', 'month', 'year', 'all'], true) ? $period : 'month';
 
         [$start, $end, $periodLabel] = $this->periodRange($period);
+        $now = Carbon::now();
+        $accomplishmentStart = $now->copy()->startOfMonth()->min($now->copy()->startOfWeek());
 
         $resolvedInPeriod = function (Builder $query) use ($start, $end): void {
             $query->where('status', 'resolved')
@@ -27,6 +29,10 @@ class AdminStaffController extends Controller
 
         $staff = User::query()
             ->where('role', 'staff')
+            ->with(['assignedTickets' => fn (Builder $query) => $query
+                ->where('status', 'resolved')
+                ->whereBetween('resolved_at', [$accomplishmentStart, $now->copy()->endOfDay()])
+                ->latest('resolved_at')])
             ->withCount([
                 'assignedTickets as total_taken',
                 'assignedTickets as active_count' => fn (Builder $query) => $query->where('status', 'in_progress'),
@@ -44,6 +50,14 @@ class AdminStaffController extends Controller
                 'active_count' => $user->active_count,
                 'pending_review_count' => $user->pending_review_count,
                 'resolved_count' => $user->resolved_count,
+                'accomplishments' => $user->assignedTickets->map(fn (Ticket $ticket): array => [
+                    'id' => $ticket->id,
+                    'title' => $ticket->title,
+                    'priority' => $ticket->priority,
+                    'resolution_note' => $ticket->resolution_note,
+                    'resolved_at' => $ticket->resolved_at?->format('M j, Y'),
+                    'resolved_at_iso' => $ticket->resolved_at?->toIso8601String(),
+                ])->values(),
                 'charts' => [
                 'progress' => [
                     ['label' => 'In Progress', 'value' => $user->active_count, 'color' => '#f59e0b'],

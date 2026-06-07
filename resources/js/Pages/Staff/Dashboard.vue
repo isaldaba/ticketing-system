@@ -30,6 +30,8 @@ const selectedTicket = ref(
         ?? null,
 );
 const showSubmitModal = ref(false);
+const showAccomplishmentModal = ref(false);
+const accomplishmentPeriod = ref('week');
 const imageViewerUrl = ref(null);
 const claimForm = useForm({});
 const submitForm = useForm({
@@ -49,6 +51,59 @@ const statCards = computed(() => [
 const inProgressTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'in_progress'));
 const pendingReviewTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'pending_review'));
 const resolvedTickets = computed(() => props.myTickets.filter((ticket) => ticket.status === 'resolved'));
+
+const startOfDay = (date) => {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+
+    return result;
+};
+
+const endOfDay = (date) => {
+    const result = new Date(date);
+    result.setHours(23, 59, 59, 999);
+
+    return result;
+};
+
+const accomplishmentRange = computed(() => {
+    const now = new Date();
+    const start = startOfDay(now);
+
+    if (accomplishmentPeriod.value === 'week') {
+        const dayFromMonday = (start.getDay() + 6) % 7;
+        start.setDate(start.getDate() - dayFromMonday);
+    } else {
+        start.setDate(1);
+    }
+
+    return {
+        start,
+        end: endOfDay(now),
+    };
+});
+
+const accomplishmentTickets = computed(() => resolvedTickets.value.filter((ticket) => {
+    const resolvedDate = parseDateValue(ticket.resolved_at_iso);
+
+    return resolvedDate
+        && resolvedDate >= accomplishmentRange.value.start
+        && resolvedDate <= accomplishmentRange.value.end;
+}));
+
+const accomplishmentPeriodLabel = computed(() => (
+    accomplishmentPeriod.value === 'week' ? 'This Week' : 'This Month'
+));
+
+const formatReportDate = (date) => new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+}).format(date);
+
+const accomplishmentDateRange = computed(() => (
+    `${formatReportDate(accomplishmentRange.value.start)} - ${formatReportDate(accomplishmentRange.value.end)}`
+));
 
 const parseDateValue = (value) => {
     if (!value) {
@@ -221,6 +276,20 @@ const submitTicket = () => {
         },
     });
 };
+
+const openAccomplishmentModal = () => {
+    showAccomplishmentModal.value = true;
+};
+
+const closeAccomplishmentModal = () => {
+    showAccomplishmentModal.value = false;
+};
+
+const downloadAccomplishment = () => {
+    window.location.href = route('staff.accomplishment-report', {
+        period: accomplishmentPeriod.value,
+    });
+};
 </script>
 
 <template>
@@ -246,9 +315,18 @@ const submitTicket = () => {
         <div class="dashboard-surface py-10">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="soft-gradient-banner animate-rise mb-8 rounded-xl">
-                    <div class="relative px-8 py-7 text-white">
-                        <h3 class="text-2xl font-bold">Welcome, {{ auth.user.name }}!</h3>
-                        <p class="mt-1 text-indigo-100">Choose a ticket you can resolve and submit your work back to admin.</p>
+                    <div class="relative flex flex-col gap-5 px-8 py-7 text-white sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h3 class="text-2xl font-bold">Welcome, {{ auth.user.name }}!</h3>
+                            <p class="mt-1 text-indigo-100">Choose a ticket you can resolve and submit your work back to admin.</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="inline-flex shrink-0 items-center justify-center rounded-lg border border-white/30 bg-white/15 px-4 py-2.5 text-sm font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+                            @click="openAccomplishmentModal"
+                        >
+                            Generate Accomplishment Report
+                        </button>
                     </div>
                 </div>
 
@@ -555,6 +633,62 @@ const submitTicket = () => {
                     <PrimaryButton :disabled="submitForm.processing" :class="{ 'opacity-25': submitForm.processing }">Submit for Review</PrimaryButton>
                 </div>
             </form>
+        </Modal>
+
+        <Modal :show="showAccomplishmentModal" max-width="2xl" @close="closeAccomplishmentModal">
+            <div class="p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Accomplishment Report</h3>
+                        <p class="mt-1 text-sm text-gray-500">Compiled from tickets approved as resolved.</p>
+                    </div>
+                    <div class="inline-flex self-start rounded-lg bg-gray-100 p-1">
+                        <button
+                            v-for="period in [{ value: 'week', label: 'This Week' }, { value: 'month', label: 'This Month' }]"
+                            :key="period.value"
+                            type="button"
+                            class="rounded-md px-3 py-2 text-xs font-semibold transition"
+                            :class="accomplishmentPeriod === period.value ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+                            @click="accomplishmentPeriod = period.value"
+                        >
+                            {{ period.label }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">{{ accomplishmentPeriodLabel }}</p>
+                            <p class="mt-1 text-sm text-gray-600">{{ accomplishmentDateRange }}</p>
+                        </div>
+                        <span class="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                            {{ accomplishmentTickets.length }} resolved
+                        </span>
+                    </div>
+
+                    <div v-if="accomplishmentTickets.length" class="mt-5 space-y-3">
+                        <div v-for="ticket in accomplishmentTickets" :key="ticket.id" class="rounded-lg border border-white bg-white p-4 shadow-sm">
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <p class="font-semibold text-gray-900">{{ ticket.title }}</p>
+                                <span class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="priorityClasses[ticket.priority]">{{ ticket.priority }}</span>
+                            </div>
+                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{{ ticket.resolution_note || 'Ticket resolved and approved by admin.' }}</p>
+                            <p class="mt-2 text-xs font-medium text-gray-400">Resolved {{ ticket.resolved_at }}</p>
+                        </div>
+                    </div>
+                    <p v-else class="mt-5 rounded-lg bg-white px-4 py-8 text-center text-sm text-gray-400">
+                        No tickets were resolved during this period.
+                    </p>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="closeAccomplishmentModal">Close</SecondaryButton>
+                    <PrimaryButton type="button" @click="downloadAccomplishment">
+                        Download PDF
+                    </PrimaryButton>
+                </div>
+            </div>
         </Modal>
 
         <Modal :show="Boolean(imageViewerUrl)" max-width="2xl" @close="closeImageViewer">
