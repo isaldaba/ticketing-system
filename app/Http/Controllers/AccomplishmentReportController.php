@@ -14,17 +14,17 @@ class AccomplishmentReportController extends Controller
 {
     public function staff(Request $request): Response
     {
-        return $this->download($request, $request->user());
+        return $this->stream($request, $request->user());
     }
 
     public function admin(Request $request, User $user): Response
     {
         abort_unless($user->role === 'staff', 404);
 
-        return $this->download($request, $user);
+        return $this->stream($request, $user);
     }
 
-    private function download(Request $request, User $staff): Response
+    private function stream(Request $request, User $staff): Response
     {
         $period = $request->string('period')->value();
         $period = in_array($period, ['week', 'month'], true) ? $period : 'week';
@@ -58,6 +58,6 @@ class AccomplishmentReportController extends Controller
             'generatedAt' => $now,
         ])
             ->setPaper('a4')
-            ->download($filename);
+            ->stream($filename);
     }
 }
