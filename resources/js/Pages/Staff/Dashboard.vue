@@ -286,9 +286,9 @@ const closeAccomplishmentModal = () => {
 };
 
 const downloadAccomplishment = () => {
-    window.location.href = route('staff.accomplishment-report', {
+    window.open(route('staff.accomplishment-report', {
         period: accomplishmentPeriod.value,
-    });
+    }), '_blank', 'noopener');
 };
 </script>
 

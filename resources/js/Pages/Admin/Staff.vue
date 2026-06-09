@@ -186,10 +186,10 @@ const downloadAccomplishment = () => {
         return;
     }
 
-    window.location.href = route('admin.staff.accomplishment-report', {
+    window.open(route('admin.staff.accomplishment-report', {
         user: selectedStaff.value.id,
         period: accomplishmentPeriod.value,
-    });
+    }), '_blank', 'noopener');
 };
 
 const chartTotal = (items) => items.reduce((total, item) => total + item.value, 0);
