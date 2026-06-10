@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,6 +29,10 @@ class AdminTicketController extends Controller
 
         return Inertia::render('Admin/Tickets', [
             'tickets' => $tickets,
+            'staffMembers' => User::query()
+                ->where('role', 'staff')
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
             'filters' => [
                 'status' => $status,
             ],
@@ -105,6 +111,11 @@ class AdminTicketController extends Controller
         $validated = $request->validate([
             'priority' => ['required', 'in:low,medium,high,critical'],
             'due_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'assigned_to' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where('role', 'staff'),
+            ],
         ]);
 
         $ticket->update([
@@ -112,11 +123,14 @@ class AdminTicketController extends Controller
             'requester_email' => $request->user()->email,
             'priority' => $validated['priority'],
             'due_date' => $validated['due_date'] ?? null,
-            'status' => 'open',
+            'assigned_to' => $validated['assigned_to'] ?? null,
+            'status' => isset($validated['assigned_to']) ? 'in_progress' : 'open',
             'admin_review_seen_at' => now(),
         ]);
 
-        return back()->with('success', 'Guest request added to the ticket list.');
+        return back()->with('success', isset($validated['assigned_to'])
+            ? 'Guest request assigned to staff.'
+            : 'Guest request added to the ticket list.');
     }
 
     public function rejectGuestTicket(Request $request, Ticket $ticket): RedirectResponse

@@ -12,6 +12,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    staffMembers: {
+        type: Array,
+        default: () => [],
+    },
     filters: {
         type: Object,
         default: () => ({ status: 'open' }),
@@ -32,6 +36,7 @@ const { auth } = usePage().props;
 const publishForm = useForm({
     priority: 'medium',
     due_date: '',
+    assigned_to: '',
 });
 const rejectGuestForm = useForm({
     admin_note: '',
@@ -102,6 +107,7 @@ const openPublishModal = () => {
 
     publishForm.priority = selectedTicket.value.priority ?? 'medium';
     publishForm.due_date = '';
+    publishForm.assigned_to = selectedTicket.value.assigned_to ?? '';
     publishForm.clearErrors();
     showPublishModal.value = true;
 };
@@ -440,7 +446,7 @@ const returnTicket = () => {
             <form class="p-6" @submit.prevent="publishGuestTicket">
                 <h3 class="text-lg font-semibold text-gray-900">Add Guest Request to Tickets</h3>
                 <p class="mt-1 text-sm text-gray-500">
-                    Set the working details before this becomes an open ticket for staff.
+                    Set the working details and assign the request now, or leave it open for staff pickup.
                 </p>
 
                 <div v-if="selectedTicket" class="mt-5 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
@@ -479,6 +485,25 @@ const returnTicket = () => {
                         >
                         <InputError class="mt-2" :message="publishForm.errors.due_date" />
                     </div>
+                </div>
+
+                <div class="mt-5">
+                    <label for="publish-assigned-to" class="mb-2 block text-sm font-medium text-gray-700">Assign to staff</label>
+                    <select
+                        id="publish-assigned-to"
+                        v-model="publishForm.assigned_to"
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        :disabled="!staffMembers.length"
+                    >
+                        <option value="">Leave unassigned for staff pickup</option>
+                        <option v-for="member in staffMembers" :key="member.id" :value="member.id">
+                            {{ member.name }}{{ member.email ? ` (${member.email})` : '' }}
+                        </option>
+                    </select>
+                    <InputError class="mt-2" :message="publishForm.errors.assigned_to" />
+                    <p v-if="!staffMembers.length" class="mt-2 text-sm text-amber-700">
+                        No staff accounts are available for assignment.
+                    </p>
                 </div>
 
                 <div class="mt-6 flex justify-end gap-3">

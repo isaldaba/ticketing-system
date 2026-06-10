@@ -16,13 +16,14 @@ class AdminTicketTest extends TestCase
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
+        $dueDate = now()->addDays(3);
 
         $response = $this->actingAs($admin)->post(route('admin.tickets.store'), [
             'title' => 'Cannot access payroll account',
             'requester_name' => 'Admin User',
             'requester_email' => 'admin@ticketing.com',
             'priority' => 'high',
-            'due_date' => now()->addDays(3)->toDateString(),
+            'due_date' => $dueDate->toDateString(),
             'concern' => 'The payroll account returns an access denied message.',
         ]);
 
@@ -32,7 +33,7 @@ class AdminTicketTest extends TestCase
             'title' => 'Cannot access payroll account',
             'requester_name' => 'Admin User',
             'priority' => 'high',
-            'due_date' => now()->addDays(3)->toDateString(),
+            'due_date' => $dueDate->startOfDay()->toDateTimeString(),
             'status' => 'open',
             'created_by' => $admin->id,
         ]);
@@ -53,6 +54,70 @@ class AdminTicketTest extends TestCase
 
         $response->assertForbidden();
         $this->assertSame(0, Ticket::count());
+    }
+
+    public function test_admin_can_publish_guest_ticket_and_assign_it_to_staff(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'email' => 'admin@ticketing.com',
+        ]);
+        $staff = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $ticket = Ticket::create([
+            'title' => 'Guest cannot connect to Wi-Fi',
+            'requester_name' => 'Guest User',
+            'requester_email' => 'guest@example.com',
+            'priority' => 'medium',
+            'concern' => 'The guest network rejects the access code.',
+            'status' => 'guest_review',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('admin.tickets.publish', $ticket), [
+            'priority' => 'high',
+            'due_date' => now()->addDays(2)->toDateString(),
+            'assigned_to' => $staff->id,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticket->id,
+            'created_by' => $admin->id,
+            'assigned_to' => $staff->id,
+            'requester_email' => 'admin@ticketing.com',
+            'priority' => 'high',
+            'status' => 'in_progress',
+        ]);
+    }
+
+    public function test_admin_can_publish_guest_ticket_without_assignment_for_staff_pickup(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $ticket = Ticket::create([
+            'title' => 'Guest monitor issue',
+            'requester_name' => 'Guest User',
+            'priority' => 'medium',
+            'concern' => 'The lobby monitor is flickering.',
+            'status' => 'guest_review',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('admin.tickets.publish', $ticket), [
+            'priority' => 'medium',
+            'due_date' => null,
+            'assigned_to' => null,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticket->id,
+            'assigned_to' => null,
+            'status' => 'open',
+        ]);
     }
 
     public function test_staff_can_claim_and_submit_ticket_for_review(): void
