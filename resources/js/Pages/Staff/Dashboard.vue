@@ -33,6 +33,8 @@ const showSubmitModal = ref(false);
 const showAccomplishmentModal = ref(false);
 const accomplishmentPeriod = ref('week');
 const imageViewerUrl = ref(null);
+const resolutionImageInput = ref(null);
+const resolutionImagePreviewUrl = ref(null);
 const claimForm = useForm({});
 const submitForm = useForm({
     resolution_note: '',
@@ -94,6 +96,8 @@ const accomplishmentTickets = computed(() => resolvedTickets.value.filter((ticke
 const accomplishmentPeriodLabel = computed(() => (
     accomplishmentPeriod.value === 'week' ? 'This Week' : 'This Month'
 ));
+
+const resolutionImageName = computed(() => submitForm.resolution_image?.name ?? '');
 
 const formatReportDate = (date) => new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -242,9 +246,60 @@ const claimTicket = (ticket) => {
     });
 };
 
+const clearResolutionImage = () => {
+    if (resolutionImagePreviewUrl.value) {
+        URL.revokeObjectURL(resolutionImagePreviewUrl.value);
+    }
+
+    resolutionImagePreviewUrl.value = null;
+    submitForm.resolution_image = null;
+
+    if (resolutionImageInput.value) {
+        resolutionImageInput.value.value = '';
+    }
+};
+
+const setResolutionImage = (file, clearInput = false) => {
+    if (!file) {
+        clearResolutionImage();
+        return;
+    }
+
+    if (resolutionImagePreviewUrl.value) {
+        URL.revokeObjectURL(resolutionImagePreviewUrl.value);
+    }
+
+    submitForm.resolution_image = file;
+    submitForm.clearErrors('resolution_image');
+    resolutionImagePreviewUrl.value = URL.createObjectURL(file);
+
+    if (clearInput && resolutionImageInput.value) {
+        resolutionImageInput.value.value = '';
+    }
+};
+
+const handleResolutionImagePaste = (event) => {
+    const imageItem = [...(event.clipboardData?.items ?? [])]
+        .find((item) => item.kind === 'file' && item.type.startsWith('image/'));
+
+    if (!imageItem) {
+        return;
+    }
+
+    const file = imageItem.getAsFile();
+
+    if (!file) {
+        return;
+    }
+
+    event.preventDefault();
+    setResolutionImage(file, true);
+};
+
 const openSubmitModal = () => {
     submitForm.reset();
     submitForm.clearErrors();
+    clearResolutionImage();
     showSubmitModal.value = true;
 };
 
@@ -252,6 +307,7 @@ const closeSubmitModal = () => {
     showSubmitModal.value = false;
     submitForm.reset();
     submitForm.clearErrors();
+    clearResolutionImage();
 };
 
 const openImageViewer = (url) => {
@@ -589,7 +645,7 @@ const downloadAccomplishment = () => {
         </div>
 
         <Modal :show="showSubmitModal" max-width="lg" @close="closeSubmitModal">
-            <form class="p-6" @submit.prevent="submitTicket">
+            <form class="p-6" @paste="handleResolutionImagePaste" @submit.prevent="submitTicket">
                 <h3 class="text-lg font-semibold text-gray-900">Submit Ticket to Admin</h3>
                 <p class="mt-1 text-sm text-gray-500">
                     Describe what you did and add any remarks the admin should consider.
@@ -619,12 +675,29 @@ const downloadAccomplishment = () => {
                 <div class="mt-5">
                     <p class="mb-2 text-sm font-semibold text-gray-800">Resolution Image</p>
                     <input
+                        ref="resolutionImageInput"
                         type="file"
                         accept="image/*"
                         class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                        @input="submitForm.resolution_image = $event.target.files[0] ?? null"
+                        @change="setResolutionImage($event.target.files[0] ?? null)"
                     >
-                    <p class="mt-2 text-xs text-gray-500">Optional. Upload a screenshot or photo for documentation.</p>
+                    <div v-if="resolutionImagePreviewUrl" class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold text-gray-800">{{ resolutionImageName }}</p>
+                                <p class="mt-1 text-xs text-gray-500">Selected image</p>
+                            </div>
+                            <button
+                                type="button"
+                                class="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                                @click="clearResolutionImage"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <img :src="resolutionImagePreviewUrl" alt="Selected resolution documentation" class="mt-3 max-h-56 w-full rounded-md object-contain">
+                    </div>
+                    <p v-else class="mt-2 text-xs text-gray-500">Optional screenshot or photo for documentation.</p>
                     <InputError class="mt-2" :message="submitForm.errors.resolution_image" />
                 </div>
 
