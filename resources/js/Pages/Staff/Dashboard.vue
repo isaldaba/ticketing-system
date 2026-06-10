@@ -674,6 +674,10 @@ const downloadAccomplishment = () => {
 
                 <div class="mt-5">
                     <p class="mb-2 text-sm font-semibold text-gray-800">Resolution Image</p>
+                    <div class="mb-3 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                        <p class="font-semibold">You can paste a screenshot here.</p>
+                        <p class="mt-1 text-xs text-indigo-700">Copy a screenshot, click anywhere in this submit form, then press Ctrl+V. You can also upload an image file below.</p>
+                    </div>
                     <input
                         ref="resolutionImageInput"
                         type="file"
