@@ -534,7 +534,7 @@ const heatmapTitle = (day) => {
                                                 placeholder="Search staff name"
                                             />
                                         </div>
-                                        <div class="max-h-64 overflow-y-auto py-1">
+                                        <div class="max-h-64 overflow-y-auto py-1 pb-3">
                                             <button
                                                 v-for="member in filteredStaff"
                                                 :key="member.id"
