@@ -524,7 +524,7 @@ const heatmapTitle = (day) => {
 
                                     <div
                                         v-if="showStaffDropdown"
-                                        class="absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg"
+                                        class="absolute right-0 bottom-full z-20 mb-2 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg"
                                     >
                                         <div class="border-b border-gray-100 p-2">
                                             <input
