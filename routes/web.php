@@ -27,7 +27,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/dashboard', [AdminTicketController::class, 'dashboard'])->name('admin.dashboard');
     Route::get('/admin/tickets', [AdminTicketController::class, 'index'])->name('admin.tickets.index');
     Route::get('/admin/staff', [AdminStaffController::class, 'index'])->name('admin.staff.index');
-    Route::get('/admin/staff/{user}/accomplishment-report', [AccomplishmentReportController::class, 'admin'])->name('admin.staff.accomplishment-report');
+    Route::get('/admin/staff/accomplishment-report', [AccomplishmentReportController::class, 'adminMulti'])->name('admin.staff.accomplishment-report-multi');
+    Route::get('/admin/staff/{user}/accomplishment-report', [AccomplishmentReportController::class, 'admin'])->name('admin.staff.accomplishment-report')->where('user', '[0-9]+');
     Route::post('/admin/tickets', [AdminTicketController::class, 'store'])->name('admin.tickets.store');
     Route::patch('/admin/tickets/{ticket}/publish', [AdminTicketController::class, 'publishGuestTicket'])->name('admin.tickets.publish');
     Route::patch('/admin/tickets/{ticket}/reject', [AdminTicketController::class, 'rejectGuestTicket'])->name('admin.tickets.reject');

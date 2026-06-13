@@ -48,6 +48,23 @@
             font-weight: bold;
         }
 
+        .staff-section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+
+        .staff-section:not(:first-of-type) {
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .staff-name {
+            margin: 0 0 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+
         .item {
             page-break-inside: avoid;
             margin-bottom: 18px;
@@ -86,36 +103,78 @@
 <body>
     <h1>Accomplishment Report</h1>
 
-    <table class="meta">
-        <tr>
-            <td class="label">Staff:</td>
-            <td>{{ $staff->name }}</td>
-        </tr>
-        <tr>
-            <td class="label">Period:</td>
-            <td>{{ $start->format('M j, Y') }} - {{ $end->format('M j, Y') }} ({{ $periodLabel }})</td>
-        </tr>
-        <tr>
-            <td class="label">Resolved:</td>
-            <td>{{ $tickets->count() }} ticket{{ $tickets->count() === 1 ? '' : 's' }}</td>
-        </tr>
-    </table>
+    @if (isset($staffMembers))
+        <table class="meta">
+            <tr>
+                <td class="label">Staff:</td>
+                <td>{{ $staffMembers->pluck('name')->join(', ') }}</td>
+            </tr>
+            <tr>
+                <td class="label">Period:</td>
+                <td>{{ $start->format('M j, Y') }} - {{ $end->format('M j, Y') }} ({{ $periodLabel }})</td>
+            </tr>
+            <tr>
+                <td class="label">Resolved:</td>
+                <td>{{ $totalTicketCount }} ticket{{ $totalTicketCount === 1 ? '' : 's' }}</td>
+            </tr>
+        </table>
 
-    <p class="summary">
-        {{ $staff->name }} resolved {{ $tickets->count() }} ticket{{ $tickets->count() === 1 ? '' : 's' }} during this period.
-    </p>
+        <p class="summary">
+            {{ $staffMembers->count() }} staff member{{ $staffMembers->count() === 1 ? '' : 's' }} resolved {{ $totalTicketCount }} ticket{{ $totalTicketCount === 1 ? '' : 's' }} during this period.
+        </p>
 
-    <h2>Concerns</h2>
+        @foreach ($staffMembers as $member)
+            @php
+                $tickets = $groupedTickets[$member->id] ?? collect();
+            @endphp
+            <div class="staff-section">
+                <h3 class="staff-name">{{ $member->name }}</h3>
 
-    @forelse ($tickets as $index => $ticket)
-        <div class="item">
-            <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
-            <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
-            <div class="date">Resolved {{ $ticket->resolved_at?->format('M j, Y') }}</div>
-        </div>
-    @empty
-        <p class="empty">No tickets were resolved during this period.</p>
-    @endforelse
+                <h2>Concerns</h2>
+
+                @forelse ($tickets as $index => $ticket)
+                    <div class="item">
+                        <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
+                        <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
+                        <div class="date">Resolved {{ $ticket->resolved_at?->format('M j, Y') }}</div>
+                    </div>
+                @empty
+                    <p class="empty">No tickets were resolved during this period.</p>
+                @endforelse
+            </div>
+        @endforeach
+    @else
+        <table class="meta">
+            <tr>
+                <td class="label">Staff:</td>
+                <td>{{ $staff->name }}</td>
+            </tr>
+            <tr>
+                <td class="label">Period:</td>
+                <td>{{ $start->format('M j, Y') }} - {{ $end->format('M j, Y') }} ({{ $periodLabel }})</td>
+            </tr>
+            <tr>
+                <td class="label">Resolved:</td>
+                <td>{{ $tickets->count() }} ticket{{ $tickets->count() === 1 ? '' : 's' }}</td>
+            </tr>
+        </table>
+
+        <p class="summary">
+            {{ $staff->name }} resolved {{ $tickets->count() }} ticket{{ $tickets->count() === 1 ? '' : 's' }} during this period.
+        </p>
+
+        <h2>Concerns</h2>
+
+        @forelse ($tickets as $index => $ticket)
+            <div class="item">
+                <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
+                <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
+                <div class="date">Resolved {{ $ticket->resolved_at?->format('M j, Y') }}</div>
+            </div>
+        @empty
+            <p class="empty">No tickets were resolved during this period.</p>
+        @endforelse
+    @endif
 
     <div class="generated">
         Generated on {{ $generatedAt->format('M j, Y g:i A') }}

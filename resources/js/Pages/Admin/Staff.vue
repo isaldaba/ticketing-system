@@ -41,7 +41,7 @@ const props = defineProps({
 });
 
 const showStatistics = ref(false);
-const selectedStaffId = ref(null);
+const selectedStaffIds = ref([]);
 const showStaffDropdown = ref(false);
 const staffSearch = ref('');
 const showAccomplishmentModal = ref(false);
@@ -61,8 +61,8 @@ const summaryCards = computed(() => [
     { label: 'For Review', value: props.summary.pendingReviewCount, color: 'bg-indigo-500' },
 ]);
 
-const selectedStaff = computed(() => {
-    return props.staff.find((member) => member.id === selectedStaffId.value) ?? null;
+const selectedStaffMembers = computed(() => {
+    return props.staff.filter((member) => selectedStaffIds.value.includes(member.id));
 });
 
 const filteredStaff = computed(() => {
@@ -78,16 +78,76 @@ const filteredStaff = computed(() => {
     });
 });
 
+const aggregateCharts = (members) => {
+    const aggregate = (key) => {
+        const first = members[0]?.charts?.[key] ?? [];
+
+        return first.map((item, index) => ({
+            ...item,
+            value: members.reduce((sum, m) => sum + (m.charts?.[key]?.[index]?.value ?? 0), 0),
+        }));
+    };
+
+    return {
+        progress: aggregate('progress'),
+        priority: aggregate('priority'),
+    };
+};
+
 const activeCharts = computed(() => {
-    return selectedStaff.value?.charts ?? props.charts;
+    const members = selectedStaffMembers.value;
+
+    if (members.length === 0) {
+        return props.charts;
+    }
+
+    if (members.length === 1) {
+        return members[0].charts ?? props.charts;
+    }
+
+    return aggregateCharts(members);
 });
 
+const aggregateHeatmap = (members) => {
+    const firstDays = members[0]?.heatmap?.days ?? [];
+
+    const aggregatedDays = firstDays.map((day, index) => ({
+        ...day,
+        count: members.reduce((sum, m) => sum + (m.heatmap?.days?.[index]?.count ?? 0), 0),
+    }));
+
+    return {
+        total: members.reduce((sum, m) => sum + (m.heatmap?.total ?? 0), 0),
+        days: aggregatedDays,
+    };
+};
+
 const activeHeatmap = computed(() => {
-    return selectedStaff.value?.heatmap ?? props.heatmap;
+    const members = selectedStaffMembers.value;
+
+    if (members.length === 0) {
+        return props.heatmap;
+    }
+
+    if (members.length === 1) {
+        return members[0].heatmap ?? props.heatmap;
+    }
+
+    return aggregateHeatmap(members);
 });
 
 const statisticsTitle = computed(() => {
-    return selectedStaff.value ? selectedStaff.value.name : 'All Staff';
+    const members = selectedStaffMembers.value;
+
+    if (members.length === 0) {
+        return 'All Staff';
+    }
+
+    if (members.length === 1) {
+        return members[0].name;
+    }
+
+    return `${members.length} Staff Members`;
 });
 
 const startOfDay = (date) => {
@@ -117,13 +177,30 @@ const accomplishmentRange = computed(() => {
     return { start, end: endOfDay(now) };
 });
 
-const accomplishmentTickets = computed(() => (selectedStaff.value?.accomplishments ?? []).filter((ticket) => {
+const filterTicketsByRange = (tickets) => tickets.filter((ticket) => {
     const resolvedDate = new Date(ticket.resolved_at_iso);
 
     return !Number.isNaN(resolvedDate.getTime())
         && resolvedDate >= accomplishmentRange.value.start
         && resolvedDate <= accomplishmentRange.value.end;
-}));
+});
+
+const accomplishmentGroups = computed(() => {
+    const members = selectedStaffMembers.value;
+
+    if (members.length === 0) {
+        return [];
+    }
+
+    return members.map((member) => ({
+        staff: member,
+        tickets: filterTicketsByRange(member.accomplishments ?? []),
+    }));
+});
+
+const accomplishmentTickets = computed(() => {
+    return accomplishmentGroups.value.flatMap((group) => group.tickets);
+});
 
 const accomplishmentPeriodLabel = computed(() => (
     accomplishmentPeriod.value === 'week' ? 'This Week' : 'This Month'
@@ -142,9 +219,9 @@ const accomplishmentDateRange = computed(() => (
 watch(
     () => props.staff,
     () => {
-        if (selectedStaffId.value && !props.staff.some((member) => member.id === selectedStaffId.value)) {
-            selectedStaffId.value = null;
-        }
+        selectedStaffIds.value = selectedStaffIds.value.filter((id) =>
+            props.staff.some((member) => member.id === id),
+        );
     },
 );
 
@@ -156,21 +233,26 @@ const changePeriod = (period) => {
     });
 };
 
-const selectStaff = (member) => {
-    selectedStaffId.value = member.id;
+const toggleStaff = (member) => {
+    const index = selectedStaffIds.value.indexOf(member.id);
+
+    if (index === -1) {
+        selectedStaffIds.value = [...selectedStaffIds.value, member.id];
+    } else {
+        selectedStaffIds.value = selectedStaffIds.value.filter((id) => id !== member.id);
+    }
+
     showStatistics.value = true;
-    showStaffDropdown.value = false;
-    staffSearch.value = '';
 };
 
-const selectAllStaff = () => {
-    selectedStaffId.value = null;
+const clearStaffSelection = () => {
+    selectedStaffIds.value = [];
     showStaffDropdown.value = false;
     staffSearch.value = '';
 };
 
 const openAccomplishmentModal = () => {
-    if (!selectedStaff.value) {
+    if (!selectedStaffMembers.value.length) {
         return;
     }
 
@@ -182,14 +264,19 @@ const closeAccomplishmentModal = () => {
 };
 
 const downloadAccomplishment = () => {
-    if (!selectedStaff.value) {
+    if (!selectedStaffMembers.value.length) {
         return;
     }
 
-    window.open(route('admin.staff.accomplishment-report', {
-        user: selectedStaff.value.id,
-        period: accomplishmentPeriod.value,
-    }), '_blank', 'noopener');
+    const params = new URLSearchParams();
+    params.append('period', accomplishmentPeriod.value);
+    selectedStaffMembers.value.forEach((m) => params.append('users[]', m.id));
+
+    window.open(
+        `${route('admin.staff.accomplishment-report-multi')}?${params.toString()}`,
+        '_blank',
+        'noopener',
+    );
 };
 
 const chartTotal = (items) => items.reduce((total, item) => total + item.value, 0);
@@ -342,10 +429,10 @@ const heatmapTitle = (day) => {
                         {{ showStatistics ? 'Hide Statistics' : 'Show Statistics' }}
                     </button>
                     <button
-                        v-if="selectedStaff"
+                        v-if="selectedStaffIds.length"
                         type="button"
                         class="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                        @click="selectAllStaff"
+                        @click="clearStaffSelection"
                     >
                         All Staff
                     </button>
@@ -425,7 +512,11 @@ const heatmapTitle = (day) => {
                                         class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
                                         @click="showStaffDropdown = !showStaffDropdown"
                                     >
-                                        <span class="truncate">{{ selectedStaff?.name ?? 'Select a staff member' }}</span>
+                                        <span class="truncate">
+                                            <template v-if="selectedStaffMembers.length === 0">Select staff members</template>
+                                            <template v-else-if="selectedStaffMembers.length === 1">{{ selectedStaffMembers[0].name }}</template>
+                                            <template v-else>{{ selectedStaffMembers.length }} staff selected</template>
+                                        </span>
                                         <svg class="ms-2 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                         </svg>
@@ -448,12 +539,21 @@ const heatmapTitle = (day) => {
                                                 v-for="member in filteredStaff"
                                                 :key="member.id"
                                                 type="button"
-                                                class="block w-full px-3 py-2 text-left transition hover:bg-indigo-50"
-                                                :class="selectedStaffId === member.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'"
-                                                @click="selectStaff(member)"
+                                                class="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-indigo-50"
+                                                :class="selectedStaffIds.includes(member.id) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'"
+                                                @click="toggleStaff(member)"
                                             >
-                                                <span class="block text-sm font-semibold">{{ member.name }}</span>
-                                                <span class="mt-0.5 block truncate text-xs text-gray-500">{{ member.email }}</span>
+                                                <input
+                                                    type="checkbox"
+                                                    :checked="selectedStaffIds.includes(member.id)"
+                                                    class="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                    @click.stop
+                                                    @change="toggleStaff(member)"
+                                                />
+                                                <div class="min-w-0">
+                                                    <span class="block text-sm font-semibold">{{ member.name }}</span>
+                                                    <span class="mt-0.5 block truncate text-xs text-gray-500">{{ member.email }}</span>
+                                                </div>
                                             </button>
                                             <p v-if="!filteredStaff.length" class="px-3 py-4 text-center text-sm text-gray-400">
                                                 No staff found.
@@ -464,7 +564,7 @@ const heatmapTitle = (day) => {
                                 <button
                                     type="button"
                                     class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
-                                    :disabled="!selectedStaff"
+                                    :disabled="!selectedStaffMembers.length"
                                     @click="openAccomplishmentModal"
                                 >
                                     Generate Accomplishment Report
@@ -534,7 +634,9 @@ const heatmapTitle = (day) => {
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900">Staff Accomplishment Report</h3>
-                        <p class="mt-1 text-sm text-gray-500">{{ selectedStaff?.name }}</p>
+                        <p class="mt-1 text-sm text-gray-500">
+                            {{ selectedStaffMembers.length === 1 ? selectedStaffMembers[0].name : `${selectedStaffMembers.length} staff members` }}
+                        </p>
                     </div>
                     <div class="inline-flex self-start rounded-lg bg-gray-100 p-1">
                         <button
@@ -561,14 +663,23 @@ const heatmapTitle = (day) => {
                         </span>
                     </div>
 
-                    <div v-if="accomplishmentTickets.length" class="mt-5 space-y-3">
-                        <div v-for="ticket in accomplishmentTickets" :key="ticket.id" class="rounded-lg border border-white bg-white p-4 shadow-sm">
-                            <div class="flex flex-wrap items-start justify-between gap-2">
-                                <p class="font-semibold text-gray-900">{{ ticket.title }}</p>
-                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{{ ticket.priority }}</span>
+                    <div v-if="accomplishmentGroups.length" class="mt-5 space-y-5">
+                        <div v-for="group in accomplishmentGroups" :key="group.staff.id">
+                            <p v-if="accomplishmentGroups.length > 1" class="mb-2 text-sm font-bold text-gray-800">{{ group.staff.name }}</p>
+
+                            <div v-if="group.tickets.length" class="space-y-3">
+                                <div v-for="ticket in group.tickets" :key="ticket.id" class="rounded-lg border border-white bg-white p-4 shadow-sm">
+                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                        <p class="font-semibold text-gray-900">{{ ticket.title }}</p>
+                                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{{ ticket.priority }}</span>
+                                    </div>
+                                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{{ ticket.resolution_note || 'Ticket resolved and approved by admin.' }}</p>
+                                    <p class="mt-2 text-xs font-medium text-gray-400">Resolved {{ ticket.resolved_at }}</p>
+                                </div>
                             </div>
-                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{{ ticket.resolution_note || 'Ticket resolved and approved by admin.' }}</p>
-                            <p class="mt-2 text-xs font-medium text-gray-400">Resolved {{ ticket.resolved_at }}</p>
+                            <p v-else class="rounded-lg bg-white px-4 py-6 text-center text-sm text-gray-400">
+                                No tickets were resolved during this period.
+                            </p>
                         </div>
                     </div>
                     <p v-else class="mt-5 rounded-lg bg-white px-4 py-8 text-center text-sm text-gray-400">
