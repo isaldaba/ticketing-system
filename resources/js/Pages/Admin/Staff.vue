@@ -166,14 +166,21 @@ const endOfDay = (date) => {
 
 const accomplishmentRange = computed(() => {
     const now = new Date();
-    const start = startOfDay(now);
 
     if (accomplishmentPeriod.value === 'week') {
+        const start = startOfDay(now);
         start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-    } else {
-        start.setDate(1);
+        return { start, end: endOfDay(now) };
     }
 
+    if (accomplishmentPeriod.value === 'last_week') {
+        const start = startOfDay(now);
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - 7);
+        return { start, end: endOfDay(start) };
+    }
+
+    const start = startOfDay(now);
+    start.setDate(1);
     return { start, end: endOfDay(now) };
 });
 
@@ -202,9 +209,11 @@ const accomplishmentTickets = computed(() => {
     return accomplishmentGroups.value.flatMap((group) => group.tickets);
 });
 
-const accomplishmentPeriodLabel = computed(() => (
-    accomplishmentPeriod.value === 'week' ? 'This Week' : 'This Month'
-));
+const accomplishmentPeriodLabel = computed(() => ({
+    week: 'This Week',
+    last_week: 'Last Week',
+    month: 'This Month',
+}[accomplishmentPeriod.value] ?? 'This Week'));
 
 const formatReportDate = (date) => new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -640,7 +649,7 @@ const heatmapTitle = (day) => {
                     </div>
                     <div class="inline-flex self-start rounded-lg bg-gray-100 p-1">
                         <button
-                            v-for="period in [{ value: 'week', label: 'This Week' }, { value: 'month', label: 'This Month' }]"
+                            v-for="period in [{ value: 'week', label: 'This Week' }, { value: 'last_week', label: 'Last Week' }, { value: 'month', label: 'This Month' }]"
                             :key="period.value"
                             type="button"
                             class="rounded-md px-3 py-2 text-xs font-semibold transition"

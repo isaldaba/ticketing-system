@@ -38,12 +38,19 @@ class AccomplishmentReportController extends Controller
         abort_unless($staffMembers->count(), 404);
 
         $period = $request->string('period')->value();
-        $period = in_array($period, ['week', 'month'], true) ? $period : 'week';
+        $period = in_array($period, ['week', 'last_week', 'month'], true) ? $period : 'week';
         $now = Carbon::now();
-        $start = $period === 'month'
-            ? $now->copy()->startOfMonth()
-            : $now->copy()->startOfWeek();
-        $end = $now->copy()->endOfDay();
+
+        if ($period === 'last_week') {
+            $start = $now->copy()->startOfWeek()->subWeek();
+            $end = $now->copy()->startOfWeek()->subSecond();
+        } elseif ($period === 'month') {
+            $start = $now->copy()->startOfMonth();
+            $end = $now->copy()->endOfDay();
+        } else {
+            $start = $now->copy()->startOfWeek();
+            $end = $now->copy()->endOfDay();
+        }
 
         $groupedTickets = [];
         $totalTicketCount = 0;
@@ -60,7 +67,11 @@ class AccomplishmentReportController extends Controller
             $totalTicketCount += $tickets->count();
         }
 
-        $periodLabel = $period === 'month' ? 'This Month' : 'This Week';
+        $periodLabel = match ($period) {
+            'last_week' => 'Last Week',
+            'month' => 'This Month',
+            default => 'This Week',
+        };
         $filename = sprintf(
             'accomplishment-report-%d-staff-%s-%s.pdf',
             $staffMembers->count(),
@@ -84,12 +95,19 @@ class AccomplishmentReportController extends Controller
     private function stream(Request $request, User $staff): Response
     {
         $period = $request->string('period')->value();
-        $period = in_array($period, ['week', 'month'], true) ? $period : 'week';
+        $period = in_array($period, ['week', 'last_week', 'month'], true) ? $period : 'week';
         $now = Carbon::now();
-        $start = $period === 'month'
-            ? $now->copy()->startOfMonth()
-            : $now->copy()->startOfWeek();
-        $end = $now->copy()->endOfDay();
+
+        if ($period === 'last_week') {
+            $start = $now->copy()->startOfWeek()->subWeek();
+            $end = $now->copy()->startOfWeek()->subSecond();
+        } elseif ($period === 'month') {
+            $start = $now->copy()->startOfMonth();
+            $end = $now->copy()->endOfDay();
+        } else {
+            $start = $now->copy()->startOfWeek();
+            $end = $now->copy()->endOfDay();
+        }
 
         $tickets = Ticket::query()
             ->where('assigned_to', $staff->id)
@@ -98,7 +116,11 @@ class AccomplishmentReportController extends Controller
             ->orderBy('resolved_at')
             ->get();
 
-        $periodLabel = $period === 'month' ? 'This Month' : 'This Week';
+        $periodLabel = match ($period) {
+            'last_week' => 'Last Week',
+            'month' => 'This Month',
+            default => 'This Week',
+        };
         $filename = sprintf(
             'accomplishment-report-%s-%s-%s.pdf',
             Str::slug($staff->name),
