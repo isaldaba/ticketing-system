@@ -496,7 +496,7 @@ const heatmapTitle = (day) => {
                     </div>
                 </div>
 
-                <div class="overflow-hidden rounded-xl bg-white shadow-sm">
+                <div class="rounded-xl bg-white shadow-sm">
                     <div class="border-b border-gray-200 px-6 py-4">
                         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
