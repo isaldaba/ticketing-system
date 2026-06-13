@@ -22,21 +22,21 @@ class AdminStaffController extends Controller
         $now = Carbon::now();
         $accomplishmentStart = $now->copy()->startOfMonth()->min($now->copy()->startOfWeek());
 
-        $resolvedInPeriod = function (Builder $query) use ($start, $end): void {
+        $resolvedInPeriod = function ($query) use ($start, $end): void {
             $query->where('status', 'resolved')
-                ->when($start && $end, fn (Builder $query) => $query->whereBetween('resolved_at', [$start, $end]));
+                ->when($start && $end, fn ($query) => $query->whereBetween('resolved_at', [$start, $end]));
         };
 
         $staff = User::query()
             ->where('role', 'staff')
-            ->with(['assignedTickets' => fn (Builder $query) => $query
+            ->with(['assignedTickets' => fn ($query) => $query
                 ->where('status', 'resolved')
                 ->whereBetween('resolved_at', [$accomplishmentStart, $now->copy()->endOfDay()])
                 ->latest('resolved_at')])
             ->withCount([
                 'assignedTickets as total_taken',
-                'assignedTickets as active_count' => fn (Builder $query) => $query->where('status', 'in_progress'),
-                'assignedTickets as pending_review_count' => fn (Builder $query) => $query->where('status', 'pending_review'),
+                'assignedTickets as active_count' => fn ($query) => $query->where('status', 'in_progress'),
+                'assignedTickets as pending_review_count' => fn ($query) => $query->where('status', 'pending_review'),
                 'assignedTickets as resolved_count' => $resolvedInPeriod,
             ])
             ->orderByDesc('resolved_count')
