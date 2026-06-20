@@ -132,31 +132,27 @@
 
                 <h2>Concerns</h2>
 
-                @forelse ($tickets as $index => $ticket)
+                @foreach ($tickets as $index => $ticket)
                     <div class="item">
                         <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
                         <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
-                        <div class="date">Resolved {{ $ticket->resolved_at?->format('M j, Y') }}</div>
                     </div>
-                @empty
-                    <p class="empty">No tickets were resolved during this period.</p>
-                @endforelse
+                @endforeach
 
                 @php
                     $memberPending = $groupedPendingTickets[$member->id] ?? collect();
                 @endphp
 
-                <h2>Pending Tickets</h2>
-
-                @forelse ($memberPending as $index => $ticket)
+                @foreach ($memberPending as $index => $ticket)
                     <div class="item">
-                        <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
+                        <div class="title">{{ $tickets->count() + $index + 1 }}. {{ $ticket->title }}</div>
                         <div class="resolution">{{ $ticket->concern }}</div>
-                        <div class="date">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }} since {{ $ticket->created_at?->format('M j, Y') }}</div>
                     </div>
-                @empty
-                    <p class="empty">No pending tickets.</p>
-                @endforelse
+                @endforeach
+
+                @if ($tickets->isEmpty() && $memberPending->isEmpty())
+                    <p class="empty">No tickets during this period.</p>
+                @endif
             </div>
         @endforeach
     @else
@@ -181,27 +177,23 @@
 
         <h2>Concerns</h2>
 
-        @forelse ($tickets as $index => $ticket)
+        @foreach ($tickets as $index => $ticket)
             <div class="item">
                 <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
                 <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
-                <div class="date">Resolved {{ $ticket->resolved_at?->format('M j, Y') }}</div>
             </div>
-        @empty
-            <p class="empty">No tickets were resolved during this period.</p>
-        @endforelse
+        @endforeach
 
-        <h2>Pending Tickets</h2>
-
-        @forelse ($pendingTickets as $index => $ticket)
+        @foreach ($pendingTickets as $index => $ticket)
             <div class="item">
-                <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
+                <div class="title">{{ $tickets->count() + $index + 1 }}. {{ $ticket->title }}</div>
                 <div class="resolution">{{ $ticket->concern }}</div>
-                <div class="date">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }} since {{ $ticket->created_at?->format('M j, Y') }}</div>
             </div>
-        @empty
-            <p class="empty">No pending tickets.</p>
-        @endforelse
+        @endforeach
+
+        @if ($tickets->isEmpty() && $pendingTickets->isEmpty())
+            <p class="empty">No tickets during this period.</p>
+        @endif
     @endif
 
     <div class="generated">
