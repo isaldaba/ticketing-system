@@ -141,6 +141,22 @@
                 @empty
                     <p class="empty">No tickets were resolved during this period.</p>
                 @endforelse
+
+                @php
+                    $memberPending = $groupedPendingTickets[$member->id] ?? collect();
+                @endphp
+
+                <h2>Pending Tickets</h2>
+
+                @forelse ($memberPending as $index => $ticket)
+                    <div class="item">
+                        <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
+                        <div class="resolution">{{ $ticket->concern }}</div>
+                        <div class="date">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }} since {{ $ticket->created_at?->format('M j, Y') }}</div>
+                    </div>
+                @empty
+                    <p class="empty">No pending tickets.</p>
+                @endforelse
             </div>
         @endforeach
     @else
@@ -173,6 +189,18 @@
             </div>
         @empty
             <p class="empty">No tickets were resolved during this period.</p>
+        @endforelse
+
+        <h2>Pending Tickets</h2>
+
+        @forelse ($pendingTickets as $index => $ticket)
+            <div class="item">
+                <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
+                <div class="resolution">{{ $ticket->concern }}</div>
+                <div class="date">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }} since {{ $ticket->created_at?->format('M j, Y') }}</div>
+            </div>
+        @empty
+            <p class="empty">No pending tickets.</p>
         @endforelse
     @endif
 

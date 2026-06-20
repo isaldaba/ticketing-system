@@ -53,7 +53,9 @@ class AccomplishmentReportController extends Controller
         }
 
         $groupedTickets = [];
+        $groupedPendingTickets = [];
         $totalTicketCount = 0;
+        $totalPendingCount = 0;
 
         foreach ($staffMembers as $staff) {
             $tickets = Ticket::query()
@@ -63,8 +65,16 @@ class AccomplishmentReportController extends Controller
                 ->orderBy('resolved_at')
                 ->get();
 
+            $pendingTickets = Ticket::query()
+                ->where('assigned_to', $staff->id)
+                ->whereIn('status', ['in_progress', 'pending_review'])
+                ->orderBy('created_at')
+                ->get();
+
             $groupedTickets[$staff->id] = $tickets;
+            $groupedPendingTickets[$staff->id] = $pendingTickets;
             $totalTicketCount += $tickets->count();
+            $totalPendingCount += $pendingTickets->count();
         }
 
         $periodLabel = match ($period) {
@@ -82,7 +92,9 @@ class AccomplishmentReportController extends Controller
         return Pdf::loadView('reports.accomplishment', [
             'staffMembers' => $staffMembers,
             'groupedTickets' => $groupedTickets,
+            'groupedPendingTickets' => $groupedPendingTickets,
             'totalTicketCount' => $totalTicketCount,
+            'totalPendingCount' => $totalPendingCount,
             'periodLabel' => $periodLabel,
             'start' => $start,
             'end' => $end,
@@ -116,6 +128,12 @@ class AccomplishmentReportController extends Controller
             ->orderBy('resolved_at')
             ->get();
 
+        $pendingTickets = Ticket::query()
+            ->where('assigned_to', $staff->id)
+            ->whereIn('status', ['in_progress', 'pending_review'])
+            ->orderBy('created_at')
+            ->get();
+
         $periodLabel = match ($period) {
             'last_week' => 'Last Week',
             'month' => 'This Month',
@@ -131,6 +149,7 @@ class AccomplishmentReportController extends Controller
         return Pdf::loadView('reports.accomplishment', [
             'staff' => $staff,
             'tickets' => $tickets,
+            'pendingTickets' => $pendingTickets,
             'periodLabel' => $periodLabel,
             'start' => $start,
             'end' => $end,
