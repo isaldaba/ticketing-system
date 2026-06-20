@@ -79,12 +79,6 @@
             white-space: pre-line;
         }
 
-        .date {
-            margin: 5px 0 0 18px;
-            color: #6b7280;
-            font-size: 9px;
-        }
-
         .empty {
             color: #6b7280;
         }
@@ -125,33 +119,30 @@
             @php
                 $resolvedTickets = $groupedTickets[$member->id] ?? collect();
                 $pendingTicketsForStaff = $groupedPendingTickets[$member->id] ?? collect();
-                $num = 0;
             @endphp
             <div class="staff-section">
                 <h3 class="staff-name">{{ $member->name }}</h3>
 
-                <h2>Pending/In Progress</h2>
+                <h2>RMMCI Accomplishments</h2>
 
-                @if ($resolvedTickets->isEmpty() && $pendingTicketsForStaff->isEmpty())
-                    <p class="empty">No tickets during this period.</p>
-                @endif
-
-                @forelse ($resolvedTickets as $ticket)
-                    @php $num++; @endphp
+                @forelse ($resolvedTickets as $index => $ticket)
                     <div class="item">
-                        <div class="title">{{ $num }}. {{ $ticket->title }}</div>
+                        <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
                         <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
                     </div>
                 @empty
+                    <p class="empty">No tickets resolved during this period.</p>
                 @endforelse
 
-                @forelse ($pendingTicketsForStaff as $ticket)
-                    @php $num++; @endphp
+                <h2>Pending/In Progress</h2>
+
+                @forelse ($pendingTicketsForStaff as $index => $ticket)
                     <div class="item">
-                        <div class="title">{{ $num }}. {{ $ticket->title }}</div>
+                        <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
                         <div class="resolution">{{ $ticket->concern }}</div>
                     </div>
                 @empty
+                    <p class="empty">No pending tickets.</p>
                 @endforelse
             </div>
         @endforeach
@@ -175,30 +166,26 @@
             {{ $staff->name }} resolved {{ $tickets->count() }} ticket{{ $tickets->count() === 1 ? '' : 's' }} during this period.
         </p>
 
-        <h2>Pending/In Progress</h2>
+        <h2>RMMCI Accomplishments</h2>
 
-        @if ($tickets->isEmpty() && $pendingTickets->isEmpty())
-            <p class="empty">No tickets during this period.</p>
-        @endif
-
-        @php $num = 0; @endphp
-
-        @forelse ($tickets as $ticket)
-            @php $num++; @endphp
+        @forelse ($tickets as $index => $ticket)
             <div class="item">
-                <div class="title">{{ $num }}. {{ $ticket->title }}</div>
+                <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
                 <div class="resolution">{{ $ticket->resolution_note ?: 'Ticket resolved and approved by admin.' }}</div>
             </div>
         @empty
+            <p class="empty">No tickets resolved during this period.</p>
         @endforelse
 
-        @forelse ($pendingTickets as $ticket)
-            @php $num++; @endphp
+        <h2>Pending/In Progress</h2>
+
+        @forelse ($pendingTickets as $index => $ticket)
             <div class="item">
-                <div class="title">{{ $num }}. {{ $ticket->title }}</div>
+                <div class="title">{{ $index + 1 }}. {{ $ticket->title }}</div>
                 <div class="resolution">{{ $ticket->concern }}</div>
             </div>
         @empty
+            <p class="empty">No pending tickets.</p>
         @endforelse
     @endif
 
