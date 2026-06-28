@@ -189,8 +189,5 @@
         @endforelse
     @endif
 
-    <div class="generated">
-        Generated on {{ $generatedAt->format('M j, Y g:i A') }}
-    </div>
 </body>
 </html>
