@@ -75,6 +75,11 @@ const accomplishmentRange = computed(() => {
     if (accomplishmentPeriod.value === 'week') {
         const dayFromMonday = (start.getDay() + 6) % 7;
         start.setDate(start.getDate() - dayFromMonday);
+        if (now.getDay() === 0) {
+            const end = startOfDay(now);
+            end.setDate(end.getDate() - 1);
+            return { start, end: endOfDay(end) };
+        }
     } else {
         start.setDate(1);
     }

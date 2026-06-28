@@ -13,14 +13,14 @@
         }
 
         h1 {
-            margin: 0 0 14px;
+            margin: 0 0 4px;
             font-size: 22px;
             font-weight: bold;
         }
 
         .meta {
             width: 100%;
-            margin-bottom: 26px;
+            margin-bottom: 10px;
             border-collapse: collapse;
         }
 

@@ -43,13 +43,15 @@ class AccomplishmentReportController extends Controller
 
         if ($period === 'last_week') {
             $start = $now->copy()->startOfWeek()->subWeek();
-            $end = $now->copy()->startOfWeek()->subSecond();
+            $end = $now->copy()->startOfWeek()->subWeek()->addDays(6)->endOfDay();
         } elseif ($period === 'month') {
             $start = $now->copy()->startOfMonth();
             $end = $now->copy()->endOfDay();
         } else {
             $start = $now->copy()->startOfWeek();
-            $end = $now->copy()->endOfDay();
+            $end = $now->isSunday()
+                ? $now->copy()->startOfWeek()->addDays(5)->endOfDay()
+                : $now->copy()->endOfDay();
         }
 
         $groupedTickets = [];
@@ -112,13 +114,15 @@ class AccomplishmentReportController extends Controller
 
         if ($period === 'last_week') {
             $start = $now->copy()->startOfWeek()->subWeek();
-            $end = $now->copy()->startOfWeek()->subSecond();
+            $end = $now->copy()->startOfWeek()->subWeek()->addDays(6)->endOfDay();
         } elseif ($period === 'month') {
             $start = $now->copy()->startOfMonth();
             $end = $now->copy()->endOfDay();
         } else {
             $start = $now->copy()->startOfWeek();
-            $end = $now->copy()->endOfDay();
+            $end = $now->isSunday()
+                ? $now->copy()->startOfWeek()->addDays(5)->endOfDay()
+                : $now->copy()->endOfDay();
         }
 
         $tickets = Ticket::query()

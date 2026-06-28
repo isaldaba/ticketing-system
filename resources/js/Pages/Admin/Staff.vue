@@ -170,13 +170,20 @@ const accomplishmentRange = computed(() => {
     if (accomplishmentPeriod.value === 'week') {
         const start = startOfDay(now);
         start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+        if (now.getDay() === 0) {
+            const end = startOfDay(now);
+            end.setDate(end.getDate() - 1);
+            return { start, end: endOfDay(end) };
+        }
         return { start, end: endOfDay(now) };
     }
 
     if (accomplishmentPeriod.value === 'last_week') {
         const start = startOfDay(now);
         start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - 7);
-        return { start, end: endOfDay(start) };
+        const end = startOfDay(start);
+        end.setDate(end.getDate() + 6);
+        return { start, end: endOfDay(end) };
     }
 
     const start = startOfDay(now);
