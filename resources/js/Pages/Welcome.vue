@@ -146,8 +146,11 @@ const staffPerms = [
                         <Link :href="user.role === 'admin' ? route('admin.dashboard') : route('staff.dashboard')" class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition">
                             Dashboard
                         </Link>
-                        <Link :href="route('profile.edit')" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 transition">
+                        <Link :href="route('profile.edit')" class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition">
                             Profile
+                        </Link>
+                        <Link :href="route('logout')" method="post" as="button" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 transition">
+                            Log Out
                         </Link>
                     </template>
                     <template v-else>
@@ -192,6 +195,9 @@ const staffPerms = [
                                 </Link>
                                 <Link :href="route('profile.edit')" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 hover:border-indigo-400 hover:text-indigo-600 transition">
                                     View Profile
+                                </Link>
+                                <Link :href="route('logout')" method="post" as="button" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 hover:border-red-400 hover:text-red-600 transition">
+                                    Log Out
                                 </Link>
                             </template>
                             <template v-else>
@@ -414,6 +420,9 @@ const staffPerms = [
                         </Link>
                         <Link :href="route('profile.edit')" class="rounded-lg border border-white/40 px-8 py-3 text-sm font-semibold text-white hover:bg-white/10 transition">
                             View Profile
+                        </Link>
+                        <Link :href="route('logout')" method="post" as="button" class="rounded-lg border border-white/40 px-8 py-3 text-sm font-semibold text-white hover:bg-red-500/20 transition">
+                            Log Out
                         </Link>
                     </template>
                     <template v-else>
