@@ -3,8 +3,11 @@ import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+
+const page = usePage();
+const user = computed(() => page.props.auth.user);
 
 defineProps({
     canLogin: { type: Boolean },
@@ -139,12 +142,22 @@ const staffPerms = [
                     <a href="#roles" class="text-sm text-gray-600 hover:text-indigo-600 transition">Roles</a>
                 </div>
                 <div class="flex items-center gap-3">
-                    <Link v-if="canLogin" :href="route('login')" class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition">
-                        Log in
-                    </Link>
-                    <Link v-if="canRegister" :href="route('register')" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 transition">
-                        Get Started
-                    </Link>
+                    <template v-if="user">
+                        <Link :href="user.role === 'admin' ? route('admin.dashboard') : route('staff.dashboard')" class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition">
+                            Dashboard
+                        </Link>
+                        <Link :href="route('profile.edit')" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 transition">
+                            Profile
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <Link v-if="canLogin" :href="route('login')" class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition">
+                            Log in
+                        </Link>
+                        <Link v-if="canRegister" :href="route('register')" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 transition">
+                            Get Started
+                        </Link>
+                    </template>
                 </div>
             </div>
         </nav>
@@ -173,12 +186,22 @@ const staffPerms = [
                             >
                                 Submit a Ticket
                             </button>
-                            <Link :href="route('register')" class="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition">
-                                Create an Account
-                            </Link>
-                            <Link :href="route('login')" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 hover:border-indigo-400 hover:text-indigo-600 transition">
-                                Sign In
-                            </Link>
+                            <template v-if="user">
+                                <Link :href="user.role === 'admin' ? route('admin.dashboard') : route('staff.dashboard')" class="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition">
+                                    Go to Dashboard
+                                </Link>
+                                <Link :href="route('profile.edit')" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 hover:border-indigo-400 hover:text-indigo-600 transition">
+                                    View Profile
+                                </Link>
+                            </template>
+                            <template v-else>
+                                <Link :href="route('register')" class="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition">
+                                    Create an Account
+                                </Link>
+                                <Link :href="route('login')" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 hover:border-indigo-400 hover:text-indigo-600 transition">
+                                    Sign In
+                                </Link>
+                            </template>
                         </div>
                         <div class="mt-12 flex gap-10">
                             <div>
@@ -385,12 +408,22 @@ const staffPerms = [
                     >
                         Submit Guest Ticket
                     </button>
-                    <Link :href="route('register')" class="rounded-lg bg-white px-8 py-3 text-sm font-semibold text-indigo-600 shadow hover:bg-indigo-50 transition">
-                        Create Free Account
-                    </Link>
-                    <Link :href="route('login')" class="rounded-lg border border-white/40 px-8 py-3 text-sm font-semibold text-white hover:bg-white/10 transition">
-                        Sign In
-                    </Link>
+                    <template v-if="user">
+                        <Link :href="user.role === 'admin' ? route('admin.dashboard') : route('staff.dashboard')" class="rounded-lg bg-white px-8 py-3 text-sm font-semibold text-indigo-600 shadow hover:bg-indigo-50 transition">
+                            Go to Dashboard
+                        </Link>
+                        <Link :href="route('profile.edit')" class="rounded-lg border border-white/40 px-8 py-3 text-sm font-semibold text-white hover:bg-white/10 transition">
+                            View Profile
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <Link :href="route('register')" class="rounded-lg bg-white px-8 py-3 text-sm font-semibold text-indigo-600 shadow hover:bg-indigo-50 transition">
+                            Create Free Account
+                        </Link>
+                        <Link :href="route('login')" class="rounded-lg border border-white/40 px-8 py-3 text-sm font-semibold text-white hover:bg-white/10 transition">
+                            Sign In
+                        </Link>
+                    </template>
                 </div>
             </div>
         </section>
