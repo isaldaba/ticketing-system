@@ -42,7 +42,6 @@
         backdrop-filter: blur(18px);
         box-shadow: 0 12px 34px rgba(79, 70, 229, 0.08);
         isolation: isolate;
-        overflow: clip;
     }
 
     .app-nav::before {
