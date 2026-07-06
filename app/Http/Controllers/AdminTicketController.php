@@ -127,8 +127,10 @@ class AdminTicketController extends Controller
         })->validate();
 
         $ticket->update([
-            'submitted_at' => $validated['submitted_at'] ?: null,
-            'resolved_at' => $validated['resolved_at'],
+            'submitted_at' => filled($validated['submitted_at'] ?? null)
+                ? Carbon::parse($validated['submitted_at'])->startOfDay()
+                : null,
+            'resolved_at' => Carbon::parse($validated['resolved_at'])->startOfDay(),
         ]);
 
         return back()->with('success', 'Resolved ticket report dates updated.');
@@ -239,9 +241,9 @@ class AdminTicketController extends Controller
             'assignee_name' => $ticket->assignee?->name,
             'open_for' => $openFor,
             'submitted_at' => $ticket->submitted_at?->diffForHumans(),
-            'submitted_at_value' => $ticket->submitted_at?->format('Y-m-d\TH:i'),
+            'submitted_at_value' => $ticket->submitted_at?->format('Y-m-d'),
             'resolved_at' => $ticket->resolved_at?->diffForHumans(),
-            'resolved_at_value' => $ticket->resolved_at?->format('Y-m-d\TH:i'),
+            'resolved_at_value' => $ticket->resolved_at?->format('Y-m-d'),
             'created_at' => $ticket->created_at?->diffForHumans(),
         ];
     }

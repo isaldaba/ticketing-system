@@ -245,12 +245,12 @@ class AdminTicketTest extends TestCase
             'resolved_at' => now()->subHour(),
         ]);
 
-        $submittedAt = Carbon::parse('2026-07-01 08:15');
-        $resolvedAt = Carbon::parse('2026-07-01 10:45');
+        $submittedAt = Carbon::parse('2026-07-01')->startOfDay();
+        $resolvedAt = Carbon::parse('2026-07-02')->startOfDay();
 
         $response = $this->actingAs($admin)->patch(route('admin.tickets.report-dates.update', $ticket), [
-            'submitted_at' => $submittedAt->format('Y-m-d H:i'),
-            'resolved_at' => $resolvedAt->format('Y-m-d H:i'),
+            'submitted_at' => $submittedAt->toDateString(),
+            'resolved_at' => $resolvedAt->toDateString(),
         ]);
 
         $response->assertRedirect();
@@ -281,8 +281,8 @@ class AdminTicketTest extends TestCase
         $response = $this->actingAs($admin)->from(route('admin.tickets.index', ['status' => 'resolved']))->patch(
             route('admin.tickets.report-dates.update', $ticket),
             [
-                'submitted_at' => '2026-07-01 14:00',
-                'resolved_at' => '2026-07-01 10:00',
+                'submitted_at' => '2026-07-02',
+                'resolved_at' => '2026-07-01',
             ],
         );
 
@@ -307,8 +307,8 @@ class AdminTicketTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->patch(route('admin.tickets.report-dates.update', $ticket), [
-            'submitted_at' => '2026-07-01 08:00',
-            'resolved_at' => '2026-07-01 09:00',
+            'submitted_at' => '2026-07-01',
+            'resolved_at' => '2026-07-01',
         ]);
 
         $response->assertRedirect();
@@ -341,8 +341,8 @@ class AdminTicketTest extends TestCase
         ]);
 
         $response = $this->actingAs($staff)->patch(route('admin.tickets.report-dates.update', $ticket), [
-            'submitted_at' => '2026-07-01 08:00',
-            'resolved_at' => '2026-07-01 09:00',
+            'submitted_at' => '2026-07-01',
+            'resolved_at' => '2026-07-01',
         ]);
 
         $response->assertForbidden();

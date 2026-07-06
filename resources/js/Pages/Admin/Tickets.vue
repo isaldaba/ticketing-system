@@ -378,7 +378,7 @@ const updateReportDates = () => {
                                         <input
                                             id="report-submitted-at"
                                             v-model="reportDatesForm.submitted_at"
-                                            type="datetime-local"
+                                            type="date"
                                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         >
                                         <InputError class="mt-2" :message="reportDatesForm.errors.submitted_at" />
@@ -389,7 +389,7 @@ const updateReportDates = () => {
                                         <input
                                             id="report-resolved-at"
                                             v-model="reportDatesForm.resolved_at"
-                                            type="datetime-local"
+                                            type="date"
                                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                             required
                                         >
