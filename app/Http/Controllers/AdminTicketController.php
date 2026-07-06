@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -100,6 +102,36 @@ class AdminTicketController extends Controller
         ]);
 
         return back()->with('success', 'Ticket resolved.');
+    }
+
+    public function updateReportDates(Request $request, Ticket $ticket): RedirectResponse
+    {
+        if ($ticket->status !== 'resolved') {
+            return back()->with('error', 'Only resolved tickets can have report dates edited.');
+        }
+
+        $validated = Validator::make($request->all(), [
+            'submitted_at' => ['nullable', 'date'],
+            'resolved_at' => ['required', 'date'],
+        ])->after(function ($validator) use ($request): void {
+            $submittedAt = $request->input('submitted_at');
+            $resolvedAt = $request->input('resolved_at');
+
+            if (! $submittedAt || ! $resolvedAt) {
+                return;
+            }
+
+            if (Carbon::parse($submittedAt)->gt(Carbon::parse($resolvedAt))) {
+                $validator->errors()->add('submitted_at', 'Submitted date must be before or equal to the resolved date.');
+            }
+        })->validate();
+
+        $ticket->update([
+            'submitted_at' => $validated['submitted_at'] ?: null,
+            'resolved_at' => $validated['resolved_at'],
+        ]);
+
+        return back()->with('success', 'Resolved ticket report dates updated.');
     }
 
     public function publishGuestTicket(Request $request, Ticket $ticket): RedirectResponse
@@ -207,7 +239,9 @@ class AdminTicketController extends Controller
             'assignee_name' => $ticket->assignee?->name,
             'open_for' => $openFor,
             'submitted_at' => $ticket->submitted_at?->diffForHumans(),
+            'submitted_at_value' => $ticket->submitted_at?->format('Y-m-d\TH:i'),
             'resolved_at' => $ticket->resolved_at?->diffForHumans(),
+            'resolved_at_value' => $ticket->resolved_at?->format('Y-m-d\TH:i'),
             'created_at' => $ticket->created_at?->diffForHumans(),
         ];
     }

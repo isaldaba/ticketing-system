@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Ticket;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -221,5 +222,129 @@ class AdminTicketTest extends TestCase
             'status' => 'in_progress',
             'admin_note' => 'Please confirm printing from the requester account.',
         ]);
+    }
+
+    public function test_admin_can_update_report_dates_for_resolved_ticket(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+        $staff = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $ticket = Ticket::create([
+            'created_by' => $admin->id,
+            'assigned_to' => $staff->id,
+            'title' => 'Payroll access restored',
+            'requester_name' => 'Admin User',
+            'priority' => 'medium',
+            'concern' => 'Payroll account was locked.',
+            'status' => 'resolved',
+            'submitted_at' => now()->subHours(3),
+            'resolved_at' => now()->subHour(),
+        ]);
+
+        $submittedAt = Carbon::parse('2026-07-01 08:15');
+        $resolvedAt = Carbon::parse('2026-07-01 10:45');
+
+        $response = $this->actingAs($admin)->patch(route('admin.tickets.report-dates.update', $ticket), [
+            'submitted_at' => $submittedAt->format('Y-m-d H:i'),
+            'resolved_at' => $resolvedAt->format('Y-m-d H:i'),
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticket->id,
+            'submitted_at' => $submittedAt->format('Y-m-d H:i:s'),
+            'resolved_at' => $resolvedAt->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function test_admin_cannot_set_submitted_date_after_resolved_date(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $ticket = Ticket::create([
+            'created_by' => $admin->id,
+            'title' => 'Printer issue fixed',
+            'requester_name' => 'Admin User',
+            'priority' => 'medium',
+            'concern' => 'Printer queue was stuck.',
+            'status' => 'resolved',
+            'submitted_at' => now()->subHours(2),
+            'resolved_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($admin)->from(route('admin.tickets.index', ['status' => 'resolved']))->patch(
+            route('admin.tickets.report-dates.update', $ticket),
+            [
+                'submitted_at' => '2026-07-01 14:00',
+                'resolved_at' => '2026-07-01 10:00',
+            ],
+        );
+
+        $response->assertRedirect(route('admin.tickets.index', ['status' => 'resolved'], absolute: false));
+        $response->assertSessionHasErrors('submitted_at');
+    }
+
+    public function test_admin_cannot_update_report_dates_for_non_resolved_ticket(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $ticket = Ticket::create([
+            'created_by' => $admin->id,
+            'title' => 'Laptop setup pending',
+            'requester_name' => 'Admin User',
+            'priority' => 'medium',
+            'concern' => 'New hire laptop is not configured yet.',
+            'status' => 'pending_review',
+            'submitted_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('admin.tickets.report-dates.update', $ticket), [
+            'submitted_at' => '2026-07-01 08:00',
+            'resolved_at' => '2026-07-01 09:00',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error', 'Only resolved tickets can have report dates edited.');
+        $this->assertDatabaseMissing('tickets', [
+            'id' => $ticket->id,
+            'resolved_at' => '2026-07-01 09:00:00',
+        ]);
+    }
+
+    public function test_staff_cannot_update_resolved_ticket_report_dates(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+        $staff = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $ticket = Ticket::create([
+            'created_by' => $admin->id,
+            'assigned_to' => $staff->id,
+            'title' => 'Wi-Fi restored',
+            'requester_name' => 'Admin User',
+            'priority' => 'medium',
+            'concern' => 'Meeting room Wi-Fi was unavailable.',
+            'status' => 'resolved',
+            'submitted_at' => now()->subHours(2),
+            'resolved_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($staff)->patch(route('admin.tickets.report-dates.update', $ticket), [
+            'submitted_at' => '2026-07-01 08:00',
+            'resolved_at' => '2026-07-01 09:00',
+        ]);
+
+        $response->assertForbidden();
     }
 }

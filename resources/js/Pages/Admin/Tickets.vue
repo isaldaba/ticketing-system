@@ -5,7 +5,7 @@ import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     tickets: {
@@ -44,6 +44,10 @@ const rejectGuestForm = useForm({
 const approveForm = useForm({});
 const returnForm = useForm({
     admin_note: '',
+});
+const reportDatesForm = useForm({
+    submitted_at: '',
+    resolved_at: '',
 });
 
 const priorityClasses = {
@@ -98,6 +102,20 @@ const changeFilter = (status) => {
             selectedTicket.value = page.props.tickets[0] ?? null;
         },
     });
+};
+
+const syncReportDatesForm = (ticket = selectedTicket.value) => {
+    reportDatesForm.submitted_at = ticket?.submitted_at_value ?? '';
+    reportDatesForm.resolved_at = ticket?.resolved_at_value ?? '';
+    reportDatesForm.clearErrors();
+};
+
+watch(selectedTicket, (ticket) => {
+    syncReportDatesForm(ticket);
+}, { immediate: true });
+
+const selectTicket = (ticket) => {
+    selectedTicket.value = ticket;
 };
 
 const openPublishModal = () => {
@@ -213,6 +231,23 @@ const returnTicket = () => {
         },
     });
 };
+
+const updateReportDates = () => {
+    if (!selectedTicket.value || selectedTicket.value.status !== 'resolved') {
+        return;
+    }
+
+    const ticketId = selectedTicket.value.id;
+
+    reportDatesForm.patch(route('admin.tickets.report-dates.update', ticketId), {
+        preserveScroll: true,
+        preserveState: true,
+        only: ['tickets', 'filters', 'counts'],
+        onSuccess: (page) => {
+            selectedTicket.value = page.props.tickets.find((ticket) => ticket.id === ticketId) ?? null;
+        },
+    });
+};
 </script>
 
 <template>
@@ -266,7 +301,7 @@ const returnTicket = () => {
                                 type="button"
                                 class="block w-full px-6 py-4 text-left transition hover:bg-gray-50"
                                 :class="{ 'bg-indigo-50': selectedTicket?.id === ticket.id }"
-                                @click="selectedTicket = ticket"
+                                @click="selectTicket(ticket)"
                             >
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0">
@@ -324,8 +359,52 @@ const returnTicket = () => {
                                 <p v-if="selectedTicket.due_date"><span class="font-semibold text-gray-800">Target finish:</span> {{ selectedTicket.due_date }}</p>
                                 <p v-if="selectedTicket.assignee_name"><span class="font-semibold text-gray-800">Assigned to:</span> {{ selectedTicket.assignee_name }}</p>
                                 <p v-if="selectedTicket.submitted_at"><span class="font-semibold text-gray-800">Submitted:</span> {{ selectedTicket.submitted_at }}</p>
+                                <p v-if="selectedTicket.resolved_at"><span class="font-semibold text-gray-800">Resolved:</span> {{ selectedTicket.resolved_at }}</p>
                                 <p><span class="font-semibold text-gray-800">In system:</span> {{ selectedTicket.created_at }}</p>
                                 <p><span class="font-semibold text-gray-800">{{ selectedTicket.status === 'resolved' ? 'Was open for:' : 'Open for:' }}</span> {{ selectedTicket.open_for }}</p>
+                            </div>
+
+                            <div v-if="selectedTicket.status === 'resolved'" class="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                                <div>
+                                    <p class="text-sm font-semibold text-emerald-900">Report Dates</p>
+                                    <p class="mt-1 text-sm leading-6 text-emerald-800">
+                                        Update these timestamps when the accomplishment report needs corrected submission or resolution timing.
+                                    </p>
+                                </div>
+
+                                <form class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" @submit.prevent="updateReportDates">
+                                    <div>
+                                        <label for="report-submitted-at" class="mb-2 block text-sm font-medium text-gray-700">Submitted at</label>
+                                        <input
+                                            id="report-submitted-at"
+                                            v-model="reportDatesForm.submitted_at"
+                                            type="datetime-local"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        >
+                                        <InputError class="mt-2" :message="reportDatesForm.errors.submitted_at" />
+                                    </div>
+
+                                    <div>
+                                        <label for="report-resolved-at" class="mb-2 block text-sm font-medium text-gray-700">Resolved at</label>
+                                        <input
+                                            id="report-resolved-at"
+                                            v-model="reportDatesForm.resolved_at"
+                                            type="datetime-local"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            required
+                                        >
+                                        <InputError class="mt-2" :message="reportDatesForm.errors.resolved_at" />
+                                    </div>
+
+                                    <div class="sm:col-span-2 flex justify-end gap-3">
+                                        <SecondaryButton type="button" @click="syncReportDatesForm()">
+                                            Reset
+                                        </SecondaryButton>
+                                        <PrimaryButton :disabled="reportDatesForm.processing" :class="{ 'opacity-25': reportDatesForm.processing }">
+                                            Save Report Dates
+                                        </PrimaryButton>
+                                    </div>
+                                </form>
                             </div>
 
                             <div class="mt-6">

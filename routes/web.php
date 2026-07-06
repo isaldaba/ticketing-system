@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::patch('/admin/tickets/{ticket}/publish', [AdminTicketController::class, 'publishGuestTicket'])->name('admin.tickets.publish');
     Route::patch('/admin/tickets/{ticket}/reject', [AdminTicketController::class, 'rejectGuestTicket'])->name('admin.tickets.reject');
     Route::patch('/admin/tickets/{ticket}/approve', [AdminTicketController::class, 'approve'])->name('admin.tickets.approve');
+    Route::patch('/admin/tickets/{ticket}/report-dates', [AdminTicketController::class, 'updateReportDates'])->name('admin.tickets.report-dates.update');
     Route::patch('/admin/tickets/{ticket}/return', [AdminTicketController::class, 'returnToUser'])->name('admin.tickets.return');
     Route::post('/admin/tickets/{ticket}/notifications/review/read', [AdminTicketController::class, 'markReviewNotificationRead'])->name('admin.tickets.notifications.review.read');
 });
