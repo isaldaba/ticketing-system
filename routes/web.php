@@ -36,6 +36,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::patch('/admin/tickets/{ticket}/report-dates', [AdminTicketController::class, 'updateReportDates'])->name('admin.tickets.report-dates.update');
     Route::patch('/admin/tickets/{ticket}/return', [AdminTicketController::class, 'returnToUser'])->name('admin.tickets.return');
     Route::post('/admin/tickets/{ticket}/notifications/review/read', [AdminTicketController::class, 'markReviewNotificationRead'])->name('admin.tickets.notifications.review.read');
+    Route::post('/admin/notifications/read', [AdminTicketController::class, 'markNotificationsRead'])->name('admin.notifications.read');
 });
 
 Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
@@ -44,6 +45,7 @@ Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
     Route::patch('/staff/tickets/{ticket}/claim', [StaffTicketController::class, 'claim'])->name('staff.tickets.claim');
     Route::match(['post', 'patch'], '/staff/tickets/{ticket}/submit', [StaffTicketController::class, 'submitForReview'])->name('staff.tickets.submit');
     Route::post('/staff/tickets/{ticket}/notifications/return/read', [StaffTicketController::class, 'markReturnNotificationRead'])->name('staff.tickets.notifications.return.read');
+    Route::post('/staff/notifications/read', [StaffTicketController::class, 'markNotificationsRead'])->name('staff.notifications.read');
 });
 
 Route::middleware('auth')->group(function () {

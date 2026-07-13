@@ -5,11 +5,13 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
 const page = usePage();
 const notificationsOpen = ref(false);
+const openedNotificationItems = ref([]);
+const openedNotificationCount = ref(0);
 
 const dashboardHref = computed(() => {
     return page.props.auth.user.role === 'admin'
@@ -24,6 +26,32 @@ const dashboardActive = computed(() => {
 });
 
 const notifications = computed(() => page.props.notifications ?? { count: 0, items: [] });
+
+const markNotificationsRead = () => {
+    if (!notifications.value.count) {
+        return;
+    }
+
+    const readRoute = page.props.auth.user.role === 'admin'
+        ? route('admin.notifications.read')
+        : route('staff.notifications.read');
+
+    router.post(readRoute, {}, {
+        preserveScroll: true,
+        preserveState: true,
+        only: ['notifications'],
+    });
+};
+
+const toggleNotifications = () => {
+    notificationsOpen.value = !notificationsOpen.value;
+
+    if (notificationsOpen.value) {
+        openedNotificationItems.value = [...notifications.value.items];
+        openedNotificationCount.value = notifications.value.count;
+        markNotificationsRead();
+    }
+};
 </script>
 
 <template>
@@ -73,7 +101,7 @@ const notifications = computed(() => page.props.notifications ?? { count: 0, ite
                                 <button
                                     type="button"
                                     class="notification-button relative inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-700 transition hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                                    @click="notificationsOpen = !notificationsOpen"
+                                    @click="toggleNotifications"
                                 >
                                     <span class="sr-only">Notifications</span>
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,11 +121,11 @@ const notifications = computed(() => page.props.notifications ?? { count: 0, ite
                                 >
                                     <div class="border-b border-gray-100 px-4 py-3">
                                         <p class="text-sm font-semibold text-gray-900">Notifications</p>
-                                        <p class="mt-0.5 text-xs text-gray-500">{{ notifications.count }} active item{{ notifications.count === 1 ? '' : 's' }}</p>
+                                        <p class="mt-0.5 text-xs text-gray-500">{{ openedNotificationCount }} new item{{ openedNotificationCount === 1 ? '' : 's' }}</p>
                                     </div>
-                                    <div v-if="notifications.items.length" class="max-h-80 overflow-y-auto">
+                                    <div v-if="openedNotificationItems.length" class="max-h-80 overflow-y-auto">
                                         <Link
-                                            v-for="item in notifications.items"
+                                            v-for="item in openedNotificationItems"
                                             :key="item.id"
                                             :href="item.href"
                                             :method="item.method ?? 'get'"
@@ -253,6 +281,7 @@ const notifications = computed(() => page.props.notifications ?? { count: 0, ite
                         <div class="mt-3 space-y-1">
                             <ResponsiveNavLink
                                 :href="$page.props.auth.user.role === 'admin' ? route('admin.tickets.index', { status: 'pending_review' }) : route('staff.dashboard')"
+                                @click="markNotificationsRead"
                             >
                                 Notifications
                                 <span

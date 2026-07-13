@@ -5,7 +5,7 @@ import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({
     tickets: {
@@ -27,6 +27,7 @@ const props = defineProps({
 });
 
 const selectedTicket = ref(props.tickets[0] ?? null);
+const search = ref(props.filters.search ?? '');
 const showReturnModal = ref(false);
 const showApproveModal = ref(false);
 const showPublishModal = ref(false);
@@ -93,16 +94,49 @@ const priorityOptions = [
 ];
 
 const changeFilter = (status) => {
+    window.clearTimeout(searchTimer);
     selectedTicket.value = null;
     router.get(route('admin.tickets.index'), { status }, {
         preserveScroll: true,
         preserveState: true,
         only: ['tickets', 'filters', 'counts'],
         onSuccess: (page) => {
+            search.value = page.props.filters.search ?? '';
             selectedTicket.value = page.props.tickets[0] ?? null;
         },
     });
 };
+
+const searchResolvedTickets = () => {
+    selectedTicket.value = null;
+    router.get(route('admin.tickets.index'), { status: 'resolved', search: search.value }, {
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+        only: ['tickets', 'filters', 'counts'],
+        onSuccess: (page) => {
+            selectedTicket.value = page.props.tickets[0] ?? null;
+        },
+    });
+};
+
+let searchTimer = null;
+
+watch(search, () => {
+    window.clearTimeout(searchTimer);
+
+    if (props.filters.status !== 'resolved') {
+        return;
+    }
+
+    searchTimer = window.setTimeout(() => {
+        if (props.filters.status === 'resolved') {
+            searchResolvedTickets();
+        }
+    }, 300);
+});
+
+onBeforeUnmount(() => window.clearTimeout(searchTimer));
 
 const syncReportDatesForm = (ticket = selectedTicket.value) => {
     reportDatesForm.submitted_at = ticket?.submitted_at_value ?? '';
@@ -291,7 +325,19 @@ const updateReportDates = () => {
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
                     <div class="overflow-hidden rounded-xl bg-white shadow-sm">
                         <div class="border-b border-gray-200 px-6 py-4">
-                            <h3 class="font-semibold text-gray-900">Tickets</h3>
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <h3 class="font-semibold text-gray-900">Tickets</h3>
+                                <div v-if="filters.status === 'resolved'" class="w-full sm:w-auto">
+                                    <label for="resolved-name-search" class="sr-only">Search resolved tickets by requester or assigned staff name</label>
+                                    <input
+                                        id="resolved-name-search"
+                                        v-model="search"
+                                        type="search"
+                                        placeholder="Requester or staff name"
+                                        class="min-w-0 flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:w-64"
+                                    >
+                                </div>
+                            </div>
                         </div>
 
                         <div v-if="tickets.length" class="divide-y divide-gray-100">

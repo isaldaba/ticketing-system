@@ -108,6 +108,18 @@ class StaffTicketController extends Controller
         return redirect()->route('staff.dashboard');
     }
 
+    public function markNotificationsRead(Request $request): RedirectResponse
+    {
+        Ticket::query()
+            ->where('assigned_to', $request->user()->id)
+            ->where('status', 'in_progress')
+            ->whereNotNull('admin_note')
+            ->whereNull('staff_return_seen_at')
+            ->update(['staff_return_seen_at' => now()]);
+
+        return back();
+    }
+
     private function serializeTicket(Ticket $ticket): array
     {
         return [

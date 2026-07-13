@@ -18,10 +18,15 @@ class AdminTicketController extends Controller
     public function index(Request $request): Response
     {
         $status = $request->query('status', 'open');
+        $search = trim((string) $request->query('search', ''));
 
         $tickets = Ticket::query()
             ->with('assignee')
             ->when(in_array($status, ['guest_review', 'guest_rejected', 'open', 'in_progress', 'pending_review', 'resolved'], true), fn ($query) => $query->where('status', $status))
+            ->when($status === 'resolved' && $search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                $query->where('requester_name', 'like', '%'.$search.'%')
+                    ->orWhereHas('assignee', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
+            }))
             ->orderByRaw("case priority when 'critical' then 1 when 'high' then 2 when 'medium' then 3 else 4 end")
             ->orderByRaw('due_date is null')
             ->orderBy('due_date')
@@ -37,6 +42,7 @@ class AdminTicketController extends Controller
                 ->get(['id', 'name', 'email']),
             'filters' => [
                 'status' => $status,
+                'search' => $status === 'resolved' ? $search : '',
             ],
             'counts' => [
                 'all' => Ticket::count(),
@@ -217,6 +223,16 @@ class AdminTicketController extends Controller
         return redirect()->route('admin.tickets.index', [
             'status' => $ticket->status === 'guest_review' ? 'guest_review' : 'pending_review',
         ]);
+    }
+
+    public function markNotificationsRead(): RedirectResponse
+    {
+        Ticket::query()
+            ->whereIn('status', ['guest_review', 'pending_review'])
+            ->whereNull('admin_review_seen_at')
+            ->update(['admin_review_seen_at' => now()]);
+
+        return back();
     }
 
     private function serializeTicket(Ticket $ticket): array
